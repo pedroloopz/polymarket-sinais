@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import timedelta
 
 from bot import logs
 
@@ -28,6 +29,17 @@ def main(argv: list[str] | None = None) -> int:
     from bot.diario import placar
 
     ctx = tarefas.contexto(args.db)
+    regras_repeticao = {
+        "coletar": {"janela": timedelta(minutes=30)},
+        "resumo": {"mesmo_dia": True},
+        "placar-semanal": {"mesmo_dia": True},
+    }
+    nome_tarefa = {"placar-semanal": "placar_semanal"}.get(args.comando, args.comando)
+    if args.comando in regras_repeticao and tarefas.ja_rodou(
+        ctx, nome_tarefa, **regras_repeticao[args.comando]
+    ):
+        print(f"'{args.comando}' já rodou nesta janela; execução automática repetida ignorada.")
+        return 0
     if args.comando == "coletar":
         tarefas.tarefa_coletar(ctx)
     elif args.comando == "resumo":

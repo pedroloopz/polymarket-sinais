@@ -87,6 +87,7 @@ jobs:
             TELEGRAM_CHAT_ID
             WEBHOOK_SECRET
             ANTHROPIC_API_KEY
+            GH_DISPATCH_TOKEN
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           # Sem chat ID ainda: "0" não autoriza ninguém, e o /start responde com o seu ID.
@@ -94,6 +95,8 @@ jobs:
           WEBHOOK_SECRET: ${{ steps.segredo.outputs.valor }}
           # Opcional (posts do X). Sem a chave, os rascunhos saem de um modelo de texto fixo.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || '-' }}
+          # Opcional: o Worker dispara coleta/resumo/placar no horário (o agendamento do GitHub falha).
+          GH_DISPATCH_TOKEN: ${{ secrets.GH_DISPATCH_TOKEN || '-' }}
 
       - name: Descobrir a URL do Worker
         id: url

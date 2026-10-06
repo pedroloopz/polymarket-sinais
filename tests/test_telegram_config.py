@@ -67,3 +67,20 @@ def test_mesclar_recursivo():
 def test_ativos_do_tema(cfg):
     ira = cfg.ativos_do_tema("ira")
     assert ira["XLE"] == -1 and ira["UAL"] == 1 and ira["PETR4.SA"] == -1
+
+
+def test_execucao_automatica_repetida_e_ignorada(tmp_path, monkeypatch):
+    from datetime import timedelta
+
+    from bot import db, tarefas
+
+    ctx = tarefas.contexto(tmp_path / "r.sqlite", agora=DIA)
+    ctx.con.execute(
+        "INSERT INTO execucoes (tarefa, inicio, fim, status) VALUES ('resumo', ?, ?, 'ok')",
+        (db.iso(DIA - timedelta(hours=1)), db.iso(DIA - timedelta(minutes=55))),
+    )
+    monkeypatch.setenv("AUTOMATICO", "false")
+    assert not tarefas.ja_rodou(ctx, "resumo", mesmo_dia=True)  # manual sempre roda
+    monkeypatch.setenv("AUTOMATICO", "true")
+    assert tarefas.ja_rodou(ctx, "resumo", mesmo_dia=True)
+    assert not tarefas.ja_rodou(ctx, "coletar", janela=timedelta(minutes=30))  # nunca rodou
