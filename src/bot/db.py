@@ -75,6 +75,30 @@ CREATE TABLE IF NOT EXISTS avaliacoes (
     PRIMARY KEY (sinal_id, horizonte)
 );
 
+-- Módulo 2: resultado da calibração por par (mercado, ativo).
+CREATE TABLE IF NOT EXISTS calibracao (
+    mercado_id TEXT NOT NULL,
+    ativo TEXT NOT NULL,
+    tema TEXT NOT NULL,
+    ts TEXT NOT NULL,
+    defasagem_min REAL,          -- > 0: a Polymarket anda antes
+    correlacao REAL,
+    beta_10pp REAL,              -- % do ativo por +10 p.p. na probabilidade
+    t_beta REAL,
+    n INTEGER,
+    volume REAL,
+    score REAL,
+    PRIMARY KEY (mercado_id, ativo)
+);
+
+-- Histórico de preços da Polymarket (cache do /prices-history) para o z-score.
+CREATE TABLE IF NOT EXISTS hist_mercado (
+    mercado_id TEXT NOT NULL,
+    t INTEGER NOT NULL,
+    p REAL NOT NULL,
+    PRIMARY KEY (mercado_id, t)
+);
+
 -- Mensagens 🔔 seguradas durante o horário de silêncio.
 CREATE TABLE IF NOT EXISTS fila (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,6 +126,38 @@ CREATE TABLE IF NOT EXISTS execucoes (
 """
 
 
+# Colunas acrescentadas depois da Fase 1: o banco que já existe no branch `dados` é migrado sozinho.
+COLUNAS_NOVAS = {
+    "sinais": {
+        "confianca": "TEXT",
+        "status": "TEXT DEFAULT 'aberto'",
+        "base_ts": "TEXT",
+        "p_base": "REAL",
+        "p_sinal": "REAL",
+        "z": "REAL",
+        "alvo_parcial": "REAL",
+        "stop_tempo": "TEXT",
+        "esperado": "REAL",
+        "realizado": "REAL",
+        "defasagem_min": "REAL",
+        "beta_10pp": "REAL",
+        "quantidade": "REAL",
+        "avisos": "TEXT DEFAULT '[]'",
+        "fechado_em": "TEXT",
+        "resultado": "REAL",
+    },
+}
+
+
+def _migrar(con: sqlite3.Connection) -> None:
+    for tabela, colunas in COLUNAS_NOVAS.items():
+        existentes = {r[1] for r in con.execute(f"PRAGMA table_info({tabela})")}
+        for nome, tipo in colunas.items():
+            if nome not in existentes:
+                con.execute(f"ALTER TABLE {tabela} ADD COLUMN {nome} {tipo}")
+    con.commit()
+
+
 def agora() -> datetime:
     return datetime.now(UTC)
 
@@ -127,6 +183,7 @@ def conectar(caminho: str | Path) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON")
     con.executescript(ESQUEMA)
+    _migrar(con)
     return con
 
 

@@ -37,20 +37,37 @@ diario:
   minimo_sinais_avaliados: 30
   minimo_semanas: 8
 
-# ---- Fase 2 (declarados já para ficarem num lugar só) ----
+# ---- Fase 2 ----
+calibracao:                       # módulo 2 (workflow mensal "Calibração")
+  intervalo_min: 5                # menor barra que o Yahoo dá para 30+ dias (1 min só vale 7 dias)
+  dias: 30
+  defasagem_max_min: 60           # testa de −60 a +60 min
+  mercados_por_tema: 3            # os de maior volume (acima do volume mínimo de sinal)
+  amostras_min: 150               # barras alinhadas mínimas para confiar no par
+  t_min: 2.0                      # |t| do beta abaixo disso = sentido não confirmado
+
 sinais:
   zscore_min: 2.0                 # (Telegram)
   janela_desvio_dias: 30
-  persistencia_leituras: 2
+  persistencia_leituras: 2        # o movimento precisa aparecer em N leituras seguidas
+  retencao_min: 0.5               # na leitura seguinte, precisa manter ≥ 50% do movimento
+  prefiltro_pp: 1.0               # abaixo de 1 p.p. em 1 h nem calcula z (economiza chamadas)
   zona_distorcida: {abaixo: 0.10, acima: 0.90}
   prazo_curto_dias: 3
+  prazo_curto_fator_z: 1.5        # queda em mercado "até dd/mm" perto do fim exige z × 1,5
   espaco_minimo_pct_do_esperado: 50
+  latencia_multiplo: 3            # acionável só se defasagem > 3 × latência do alerta
+
+semaforo:
+  limiar_pct: 0.1                 # indicador precisa andar ≥ 0,1% para contar
 
 risco:
   risco_por_operacao_pct: 1.0     # (Telegram)
   atr_dias: 14
   atr_multiplo_stop: 1.5
   ganho_risco_min: 1.5            # (Telegram)
+  stop_tempo_multiplo_defasagem: 2
+  invalidacao_devolucao: 0.5      # prob. devolve > 50% do movimento → "sinal invalidado"
   capital: null                   # (Telegram) /capital — nunca vai para o git
 
 protecao:

@@ -108,3 +108,44 @@ test("estranho recebe só o chat ID no /start", async () => {
   const r2 = await worker.fetch(pedido({ message: { chat: { id: 7 }, text: "/ira" } }), env);
   assert.equal(await r2.text(), "ok");
 });
+
+const PAINEL_CFG = {
+  ...PAINEL,
+  ranking: "📊 ranking",
+  regras: { zscore_min: 2, volume_min_sinal_usd: 1000000, ganho_risco_min: 1.5, risco_por_operacao_pct: 1, silencio: { ligado: true, inicio: "22:00", fim: "07:00" } },
+  temas: { ira: { chave: "ira", nome: "Irã", emoji: "🇮🇷", ligado: true, texto: "x" }, fed: { chave: "fed", nome: "Fed", emoji: "🏦", ligado: true, texto: "y" } },
+};
+
+test("/config mostra valores atuais com ✅", () => {
+  const r = tratarMensagem("/config", 1, PAINEL_CFG, {});
+  const m = r.respostas[0];
+  assert.match(m.text, /z-score mín\.: <b>2,0<\/b>/);
+  assert.match(m.text, /US\$ 1 mi/);
+  const botoesZ = m.reply_markup.inline_keyboard[0].map((b) => b.text);
+  assert.ok(botoesZ.includes("✅ 2,0"));
+});
+
+test("botão de config grava no formato que o Python lê e edita a mensagem", () => {
+  const r = tratarBotao("cfg:z:2.5", 1, PAINEL_CFG, {}, 99);
+  assert.equal(r.config.regras.sinais.zscore_min, 2.5);
+  assert.equal(r.respostas[0].method, "editMessageText");
+  assert.equal(r.respostas[0].message_id, 99);
+  const v = tratarBotao("cfg:vol:500000", 1, PAINEL_CFG, r.config, 99);
+  assert.equal(v.config.regras.filtros.volume_min_sinal_usd, 500000);
+  assert.equal(v.config.regras.sinais.zscore_min, 2.5); // mantém o anterior
+  assert.equal(tratarBotao("cfg:z:7", 1, PAINEL_CFG, {}, 99).config, undefined); // valor fora da lista
+});
+
+test("liga e desliga tema", () => {
+  const r1 = tratarBotao("cfg:tema:fed", 1, PAINEL_CFG, {}, 5);
+  assert.deepEqual(r1.config.temas_desligados, ["fed"]);
+  assert.match(JSON.stringify(r1.respostas[0].reply_markup), /⏸️ 🏦 Fed/);
+  const r2 = tratarBotao("cfg:tema:fed", 1, PAINEL_CFG, r1.config, 5);
+  assert.deepEqual(r2.config.temas_desligados, []);
+});
+
+test("/ranking e /placar semanal vêm do painel", () => {
+  assert.equal(tratarMensagem("/ranking", 1, PAINEL_CFG, {}).respostas[0].text, "📊 ranking");
+  const comSemanal = { ...PAINEL_CFG, placar: "p", placar_semanal: "📒 semana" };
+  assert.equal(tratarMensagem("/placar", 1, comSemanal, {}).respostas[0].text, "📒 semana");
+});

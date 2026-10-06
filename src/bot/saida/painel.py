@@ -31,7 +31,7 @@ def montar(
             "texto": texto_tema(con, cfg, chave, agora),
         }
     execucoes = {}
-    for tarefa in ("coletar", "resumo"):
+    for tarefa in ("coletar", "resumo", "calibrar", "placar_semanal"):
         linha = con.execute(
             "SELECT fim, status FROM execucoes WHERE tarefa = ? ORDER BY id DESC LIMIT 1", (tarefa,)
         ).fetchone()
@@ -49,9 +49,15 @@ def montar(
         "novos": textos.get("novos") or ler_texto(con, "novos", "🆕 Nenhum mercado novo recente."),
         "balancos": textos.get("balancos") or ler_texto(con, "balancos", "🪙 Balanços ainda não levantados."),
         "placar": textos.get("placar", ""),
-        "sinais": textos.get("sinais", "🎯 Nenhum sinal ainda. A geração de sinais chega na Fase 2."),
+        "sinais": textos.get("sinais") or ler_texto(con, "sinais", "🎯 Nenhum sinal ainda."),
+        "ranking": textos.get("ranking") or ler_texto(con, "ranking", "📊 Calibração ainda não rodou."),
+        "placar_semanal": ler_texto(con, "placar_semanal", ""),
+        # Valores em vigor (YAML + Telegram), para o menu /config mostrar o atual.
         "regras": {
             "volume_min_sinal_usd": cfg.regras.get("filtros", {}).get("volume_min_sinal_usd"),
+            "zscore_min": cfg.regras.get("sinais", {}).get("zscore_min"),
+            "ganho_risco_min": cfg.regras.get("risco", {}).get("ganho_risco_min"),
+            "risco_por_operacao_pct": cfg.regras.get("risco", {}).get("risco_por_operacao_pct"),
             "silencio": cfg.regras.get("silencio", {}),
         },
     }

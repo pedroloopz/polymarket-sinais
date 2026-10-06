@@ -5,6 +5,7 @@
 # - exigir: a pergunta/título precisa conter TODOS estes termos (opcional).
 # - excluir: descarta se contiver algum destes termos.
 # - comando: nome do comando no Telegram (/ira, /fed...). Comandos do Telegram não aceitam acento.
+# - semaforo: indicadores do semáforo (módulo 4) e o sentido esperado quando a prob. SOBE.
 # - palavras_ditas: mercados do tipo "vai dizer X na teleconferência" — nunca geram sinal (módulo 5).
 # Os ativos ligados a cada tema ficam em ativos.yaml.
 
@@ -14,6 +15,7 @@ temas:
     emoji: "🇮🇷"
     comando: ira
     ligado: true
+    semaforo: {BZ=F: -1, ^VIX: -1}
     buscas: ["Iran ceasefire", "Iran deal", "Strait of Hormuz", "Iran sanctions", "Iran blockade"]
     incluir: ["iran", "hormuz", "tehran"]
     excluir: []
@@ -23,6 +25,7 @@ temas:
     emoji: "🇾🇪"
     comando: mar
     ligado: true
+    semaforo: {BZ=F: 1, ^VIX: 1}
     buscas: ["Houthi", "Red Sea", "Bab el-Mandeb", "Yemen ceasefire"]
     incluir: ["houthi", "red sea", "mandeb", "yemen"]
     excluir: []
@@ -32,6 +35,7 @@ temas:
     emoji: "🇹🇼"
     comando: taiwan
     ligado: true
+    semaforo: {^VIX: 1, DX-Y.NYB: 1}
     buscas: ["China invade Taiwan", "Taiwan blockade", "China Taiwan"]
     incluir: ["taiwan"]
     excluir: []
@@ -41,6 +45,7 @@ temas:
     emoji: "🇺🇦"
     comando: ucrania
     ligado: true
+    semaforo: {BZ=F: -1, ^VIX: -1}
     buscas: ["Russia Ukraine ceasefire", "Ukraine peace deal"]
     incluir: ["ukraine", "russia"]
     excluir: []
@@ -50,6 +55,7 @@ temas:
     emoji: "🏦"
     comando: fed
     ligado: true
+    semaforo: {DX-Y.NYB: -1, ^VIX: -1}
     buscas: ["Fed decision", "Fed rate cut", "FOMC"]
     incluir: ["fed", "fomc", "interest rate"]
     excluir: []
@@ -59,6 +65,7 @@ temas:
     emoji: "🇧🇷"
     comando: brasil
     ligado: true
+    semaforo: {}
     buscas: ["Brazil presidential election", "Brazil election", "Lula"]
     incluir: ["brazil", "lula", "brasil"]
     excluir: []
@@ -68,6 +75,7 @@ temas:
     emoji: "🇺🇸"
     comando: tarifas
     ligado: true
+    semaforo: {^VIX: 1, DX-Y.NYB: 1}
     buscas: ["tariffs China", "tariffs Brazil", "trade deal China"]
     incluir: ["tariff", "trade deal", "trade war"]
     excluir: []
@@ -77,6 +85,7 @@ temas:
     emoji: "🪙"
     comando: balancos
     ligado: true
+    semaforo: {}
     buscas: ["beat quarterly earnings", "Coinbase earnings", "MicroStrategy earnings", "Strategy earnings",
              "Robinhood earnings", "Circle earnings", "MARA earnings", "Riot earnings", "Galaxy earnings"]
     incluir: ["coinbase", "microstrategy", "strategy", "robinhood", "circle", "mara", "marathon", "riot",
@@ -90,6 +99,7 @@ temas:
     emoji: "₿"
     comando: cripto
     ligado: true
+    semaforo: {^VIX: -1}
     buscas: ["Bitcoin price", "Bitcoin above"]
     incluir: ["bitcoin", "btc"]
     excluir: ["ethereum", "solana"]

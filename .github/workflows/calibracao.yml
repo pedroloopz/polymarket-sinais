@@ -1,0 +1,41 @@
+name: Calibração
+
+# Módulo 2: mede defasagem e sensibilidade (beta) de cada par mercado × ativo.
+# Roda todo dia 1º do mês e manualmente (rode uma vez logo após instalar a Fase 2).
+on:
+  schedule:
+    # Dia 1º, 06:13 UTC (03:13 em Brasília): mercados fechados, sem disputar com a coleta.
+    - cron: "13 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dados
+  cancel-in-progress: false
+
+jobs:
+  calibrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BOT_DB: dados/bot.sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+
+      - name: Calibrar
+        run: python -m bot.main calibrar
+
+      - name: Salvar dados
+        if: always()
+        run: bash .github/scripts/salvar_dados.sh
+
+      - name: Avisar falha no Telegram
+        if: failure()
+        run: bash .github/scripts/avisar_falha.sh "calibração"

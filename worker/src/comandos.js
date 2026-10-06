@@ -12,12 +12,14 @@ export const AJUDA = [
   "⏳ /prazos — mercados vencendo",
   "🆕 /novos — mercados novos",
   "🎯 /sinal — últimos sinais",
+  "📊 /ranking — calibração (defasagem × efeito)",
   "📒 /placar — diário simulado",
+  "⚙️ /config — limiares, temas e silêncio",
   "💰 /capital 10000 — define o capital (R$)",
   "🌙 /silencio — horário de silêncio",
   "🩺 /status — saúde das fontes",
   "",
-  "Em breve: /config (Fase 2), /ranking (Fase 2), /baleias e /agenda (Fase 3).",
+  "Em breve (Fase 3): /baleias e /agenda.",
 ].join("\n");
 
 const BOTOES_TEMAS = [
@@ -56,11 +58,9 @@ const ALIASES = {
   ajuda: "ajuda", help: "ajuda", start: "start", btc: "cripto",
 };
 
-const VISOES = new Set(["resumo", "prazos", "novos", "placar", "sinal", "balancos"]);
+const VISOES = new Set(["resumo", "prazos", "novos", "placar", "sinal", "balancos", "ranking"]);
 const CAMPO_VISAO = { sinal: "sinais" };
 const FUTURO = {
-  config: "⚙️ O menu /config chega na Fase 2. Por enquanto: /capital e /silencio.",
-  ranking: "📊 O /ranking sai da calibração (Fase 2).",
   baleias: "🐋 Carteiras vencedoras chegam na Fase 3.",
   agenda: "📅 A agenda de eventos chega na Fase 3.",
 };
@@ -141,8 +141,123 @@ function aplicarSilencio(config, painel, valor) {
   return nova;
 }
 
+// ---------- /config ----------
+// Cada opção grava no KV "config" no mesmo formato que o Python lê (regras.* e temas_desligados).
+const OPCOES = {
+  z: { rotulo: "z-score mín.", caminho: ["sinais", "zscore_min"], valores: [1.5, 2, 2.5, 3], fmt: (v) => fmtNum(v, 1) },
+  vol: {
+    rotulo: "Volume mín. p/ sinal",
+    caminho: ["filtros", "volume_min_sinal_usd"],
+    valores: [250000, 500000, 1000000, 2000000],
+    fmt: (v) => (v >= 1e6 ? `US$ ${fmtNum(v / 1e6, 0)} mi` : `US$ ${fmtNum(v / 1e3, 0)} mil`),
+  },
+  gr: { rotulo: "Ganho/risco mín.", caminho: ["risco", "ganho_risco_min"], valores: [1.2, 1.5, 2], fmt: (v) => fmtNum(v, 1) },
+  risco: {
+    rotulo: "Risco por operação",
+    caminho: ["risco", "risco_por_operacao_pct"],
+    valores: [0.5, 1, 2],
+    fmt: (v) => `${fmtNum(v, 1)}%`,
+  },
+};
+const PADRAO_REGRAS = { zscore_min: 2, volume_min_sinal_usd: 1000000, ganho_risco_min: 1.5, risco_por_operacao_pct: 1 };
+
+function fmtNum(v, casas) {
+  return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+
+function valorAtual(config, painel, chave) {
+  const op = OPCOES[chave];
+  const [grupo, campo] = op.caminho;
+  const doKv = config?.regras?.[grupo]?.[campo];
+  if (doKv !== undefined && doKv !== null) return doKv;
+  return painel?.regras?.[campo] ?? PADRAO_REGRAS[campo];
+}
+
+function temaLigado(config, painel, chave) {
+  const desligados = config?.temas_desligados;
+  if (Array.isArray(desligados)) return !desligados.includes(chave);
+  const t = Object.values(painel?.temas || {}).find((x) => x.chave === chave);
+  return t ? t.ligado !== false : true;
+}
+
+export function menuConfig(config, painel) {
+  const linhas = ["⚙️ <b>Configuração</b> (toque para mudar)"];
+  const botoes = [];
+  for (const [chave, op] of Object.entries(OPCOES)) {
+    const atual = valorAtual(config, painel, chave);
+    linhas.push(`• ${op.rotulo}: <b>${op.fmt(atual)}</b>`);
+    botoes.push(
+      op.valores.map((v) => ({ text: (Number(v) === Number(atual) ? "✅ " : "") + op.fmt(v), callback_data: `cfg:${chave}:${v}` })),
+    );
+  }
+  const s = silencioAtual(config, painel);
+  linhas.push(`• Silêncio: <b>${s.ligado === false ? "desligado" : `${s.inicio}–${s.fim}`}</b>`);
+  botoes.push([
+    { text: "🗂️ Temas", callback_data: "cfg:temas" },
+    { text: "🌙 Silêncio", callback_data: "cfg:silencio" },
+  ]);
+  linhas.push("", "Vale a partir da próxima coleta (até 1 h).");
+  return { texto: linhas.join("\n"), botoes };
+}
+
+export function menuTemas(config, painel) {
+  const temas = Object.values(painel?.temas || {});
+  if (!temas.length) return { texto: "🗂️ Ainda sem painel. Rode a coleta uma vez.", botoes: [] };
+  const botoes = temas.map((t) => [
+    { text: `${temaLigado(config, painel, t.chave) ? "✅" : "⏸️"} ${t.emoji} ${t.nome}`, callback_data: `cfg:tema:${t.chave}` },
+  ]);
+  botoes.push([{ text: "⬅️ Voltar", callback_data: "cfg:menu" }]);
+  return { texto: "🗂️ <b>Temas</b> — toque para ligar/desligar", botoes };
+}
+
+function aplicarConfig(config, painel, partes) {
+  const nova = structuredClone(config || {});
+  nova.regras = nova.regras || {};
+  const [chave, valor] = partes;
+  if (OPCOES[chave]) {
+    const v = Number(valor);
+    if (!OPCOES[chave].valores.includes(v)) return null;
+    const [grupo, campo] = OPCOES[chave].caminho;
+    nova.regras[grupo] = { ...(nova.regras[grupo] || {}), [campo]: v };
+    return nova;
+  }
+  if (chave === "tema" && valor) {
+    const desligados = new Set(
+      Array.isArray(nova.temas_desligados)
+        ? nova.temas_desligados
+        : Object.values(painel?.temas || {}).filter((t) => t.ligado === false).map((t) => t.chave),
+    );
+    if (desligados.has(valor)) desligados.delete(valor);
+    else desligados.add(valor);
+    nova.temas_desligados = [...desligados];
+    return nova;
+  }
+  return null;
+}
+
+function editar(chatId, messageId, texto, botoes) {
+  const corpo = { method: "editMessageText", chat_id: chatId, message_id: messageId, text: texto, parse_mode: "HTML" };
+  if (botoes) corpo.reply_markup = { inline_keyboard: botoes };
+  return corpo;
+}
+
+function tratarConfig(partes, chatId, messageId, painel, config) {
+  const [acao] = partes;
+  const resposta = (m) => (messageId ? editar(chatId, messageId, m.texto, m.botoes) : msg(chatId, m.texto, m.botoes));
+  if (!acao || acao === "menu") return { respostas: [resposta(menuConfig(config, painel))] };
+  if (acao === "temas") return { respostas: [resposta(menuTemas(config, painel))] };
+  if (acao === "silencio") {
+    return { respostas: [resposta({ texto: textoSilencio(silencioAtual(config, painel)), botoes: BOTOES_SILENCIO })] };
+  }
+  const nova = aplicarConfig(config, painel, partes);
+  if (!nova) return { respostas: [] };
+  const tela = acao === "tema" ? menuTemas(nova, painel) : menuConfig(nova, painel);
+  return { respostas: [resposta(tela)], config: nova };
+}
+
 function visao(painel, chave) {
   if (!painel) return "⏳ Ainda sem dados. A primeira coleta roda pelas GitHub Actions.";
+  if (chave === "placar" && painel.placar_semanal) return painel.placar_semanal;
   const t = painel[CAMPO_VISAO[chave] || chave];
   return t || "Sem dados no momento.";
 }
@@ -160,6 +275,7 @@ export function tratarMensagem(texto, chatId, painel, config, agora = Date.now()
 
   if (nome === "start" || nome === "ajuda") return { respostas: [msg(chatId, AJUDA, BOTOES_TEMAS)] };
   if (nome === "status") return { respostas: [msg(chatId, textoStatus(painel, agora))] };
+  if (nome === "config") return tratarConfig([], chatId, null, painel, config);
   if (FUTURO[nome]) return { respostas: [msg(chatId, FUTURO[nome])] };
 
   if (nome === "capital") {
@@ -193,9 +309,10 @@ export function tratarMensagem(texto, chatId, painel, config, agora = Date.now()
   return { respostas: [msg(chatId, "Comando desconhecido. Veja /ajuda.", BOTOES_TEMAS)] };
 }
 
-export function tratarBotao(dados, chatId, painel, config) {
+export function tratarBotao(dados, chatId, painel, config, messageId = null) {
   const [tipo, ...resto] = String(dados || "").split(":");
   const valor = resto.join(":");
+  if (tipo === "cfg") return tratarConfig(resto, chatId, messageId, painel, config);
   if (tipo === "ver") return { respostas: [msg(chatId, visao(painel, valor), valor === "resumo" ? BOTOES_TEMAS : undefined)] };
   if (tipo === "tema") return { respostas: [msg(chatId, tema(painel, valor) || visao(painel, valor))] };
   if (tipo === "sil") {

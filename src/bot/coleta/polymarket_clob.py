@@ -47,7 +47,7 @@ class Clob:
     def historico(
         self, token: str, intervalo: str = "1d", fidelidade_min: int = 1
     ) -> list[tuple[int, float]]:
-        """Lista de (timestamp unix, preço). Usado pela calibração (Fase 2)."""
+        """Lista de (timestamp unix, preço) do período `intervalo` (1h, 6h, 1d, 1w, max)."""
         dados = (
             self.http.get_json(
                 f"{BASE}/prices-history",
@@ -55,4 +55,30 @@ class Clob:
             )
             or {}
         )
-        return [(int(p["t"]), float(p["p"])) for p in dados.get("history", []) if "t" in p and "p" in p]
+        return _pontos(dados)
+
+    def historico_periodo(
+        self, token: str, inicio: int, fim: int, fidelidade_min: int = 5, bloco_dias: int = 5
+    ) -> list[tuple[int, float]]:
+        """Histórico entre dois timestamps unix, pedido em blocos (startTs/endTs)."""
+        pontos: dict[int, float] = {}
+        passo = bloco_dias * 86400
+        for a in range(inicio, fim, passo):
+            dados = (
+                self.http.get_json(
+                    f"{BASE}/prices-history",
+                    params={
+                        "market": token,
+                        "startTs": a,
+                        "endTs": min(a + passo, fim),
+                        "fidelity": fidelidade_min,
+                    },
+                )
+                or {}
+            )
+            pontos.update(dict(_pontos(dados)))
+        return sorted(pontos.items())
+
+
+def _pontos(dados: dict) -> list[tuple[int, float]]:
+    return [(int(p["t"]), float(p["p"])) for p in dados.get("history", []) if "t" in p and "p" in p]
