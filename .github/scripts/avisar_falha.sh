@@ -7,6 +7,7 @@ if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
   exit 0
 fi
 log="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-curl -s -o /dev/null -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+r=$(curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_CHAT_ID}" \
-  --data-urlencode text="⚠️ Falhou: $1. Enquanto isso, o painel pode ficar desatualizado. Log: ${log}"
+  --data-urlencode text="⚠️ Falhou: $1. Enquanto isso, o painel pode ficar desatualizado. Log: ${log}")
+echo "$r" | grep -q '"ok":true' || echo "::warning::Telegram recusou o aviso: $r"
