@@ -84,6 +84,30 @@ def historico_diario(tickers: list[str], periodo: str = "3y") -> pd.DataFrame:
     return _fechamentos(df, tickers)
 
 
+def barras_intradiarias(tickers: list[str], dias: int = 30, intervalo_min: int = 5) -> pd.DataFrame:
+    """Fechamentos intradiários em UTC (colunas = tickers). O Yahoo dá 5 min por até 60 dias."""
+    df = _yf().download(
+        tickers,
+        period=f"{dias}d",
+        interval=f"{intervalo_min}m",
+        progress=False,
+        auto_adjust=False,
+        threads=True,
+        group_by="column",
+    )
+    closes = _fechamentos(df, tickers)
+    if not closes.empty:
+        idx = pd.DatetimeIndex(closes.index)
+        closes.index = idx.tz_convert("UTC") if idx.tz is not None else idx.tz_localize("UTC")
+    return closes
+
+
+def ohlc_diario(ticker: str, dias: int = 60) -> pd.DataFrame:
+    """Máxima, mínima e fechamento diários (para o ATR do stop)."""
+    df = _yf().Ticker(ticker).history(period=f"{dias}d", interval="1d", auto_adjust=False)
+    return df[["High", "Low", "Close"]].dropna() if df is not None and not df.empty else pd.DataFrame()
+
+
 def datas_balanco(ticker: str, limite: int = 12) -> pd.DataFrame:
     """Datas de balanço (passadas e futuras) com EPS estimado/realizado."""
     df = _yf().Ticker(ticker).get_earnings_dates(limit=limite)

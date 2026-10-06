@@ -1,0 +1,39 @@
+name: Placar semanal
+
+on:
+  schedule:
+    # Domingo 21:45 em Brasília = segunda 00:45 UTC (antes do silêncio das 22h).
+    - cron: "45 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dados
+  cancel-in-progress: false
+
+jobs:
+  placar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BOT_DB: dados/bot.sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+
+      - name: Placar da semana
+        run: python -m bot.main placar-semanal
+
+      - name: Salvar dados
+        if: always()
+        run: bash .github/scripts/salvar_dados.sh
+
+      - name: Avisar falha no Telegram
+        if: failure()
+        run: bash .github/scripts/avisar_falha.sh "placar semanal"

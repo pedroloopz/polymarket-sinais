@@ -13,7 +13,7 @@ Bot de **sinais** que lê mercados de previsão (Polymarket), cruza com preços 
 
 ---
 
-## 📍 Situação: Fase 1 (base)
+## 📍 Situação: Fase 2 (inteligência)
 
 | Módulo | Situação |
 |---|---|
@@ -21,11 +21,16 @@ Bot de **sinais** que lê mercados de previsão (Polymarket), cruza com preços 
 | 7 — Detector de mercado novo | ✅ |
 | 8 — Prazos vencendo | ✅ |
 | 10 — Balanços de cripto (data, mercado, reação dos últimos 8) | ✅ |
-| 13 — Diário de sinais (registro + avaliação em +1 h/+1 d/+1 sem + placar) | ✅ (os sinais em si chegam na Fase 2) |
+| 13 — Diário de sinais (registro + avaliação em +1 h/+1 d/+1 sem + placar) | ✅ |
 | 15 — Telegram básico com webhook no Worker | ✅ |
 | Resumo diário às 07h30 | ✅ |
 | Deploy automático do Worker | ✅ |
-| 2, 3, 4, 11, 11b, 12 (trava), placar semanal, `/config` | Fase 2 |
+| 2 — Calibração (defasagem × beta, mensal) + `/ranking` | ✅ |
+| 3 — Sinais (z-score em log-odds, persistência, zona distorcida, prazo curto) | ✅ |
+| 4 — Semáforo cruzado (Brent, DXY, VIX + ativo) | ✅ |
+| 11 / 11b — Stop por ATR, tamanho, alvo, ganho/risco, stop de tempo, invalidação, acompanhamento | ✅ (de hora em hora; 1–5 min na Fase 3) |
+| 12 — Urgência, silêncio e trava após 2 perdas | ✅ |
+| Placar semanal (domingo 21h45) e `/config` | ✅ |
 | 5, 6, 9, Kalshi, GDELT, alertas a cada 1–5 min | Fase 3 |
 | 14 (X), Truth Social, Claude API, painel HTML | Fase 4 |
 
@@ -77,6 +82,10 @@ Se você já usa outro bot e conhece o seu chat ID, é o mesmo número: pode us�
 3. **Actions** → **Resumo diário** → **Run workflow** para ver o resumo na hora (depois chega todo dia ~07h30).
 4. No Telegram: `/ajuda`.
 
+### 6. Fase 2: rodar a calibração uma vez
+
+**Actions** → **Calibração** → **Run workflow**. Leva alguns minutos e manda o ranking no Telegram. Depois roda sozinha todo dia 1º. Sem calibração, todo sinal sai como 📋 informativo.
+
 ### Disparar um workflow manualmente (celular)
 
 App do GitHub → repositório → **Actions** → toque no workflow → **Run workflow** → **Run workflow**. O log fica na execução (toque nela → no job → no passo).
@@ -92,14 +101,36 @@ App do GitHub → repositório → **Actions** → toque no workflow → **Run w
 | `/balancos` | Próximos balanços de COIN, MSTR, HOOD, CRCL, MARA, RIOT, GLXY + reação no dia seguinte aos últimos 8 |
 | `/prazos` | Mercados vencendo em até 3 dias |
 | `/novos` | Mercados novos dos últimos 7 dias |
-| `/sinal` | Últimos sinais (Fase 2) |
-| `/placar` | Diário simulado |
+| `/sinal` | Últimos sinais (🎯 acionável · 📋 informativo) e o status de cada um |
+| `/ranking` | Calibração: para cada tema, os ativos que mais reagem, com defasagem e efeito |
+| `/placar` | Placar da semana (domingo) ou do diário |
+| `/config` | Botões para z-score, volume mínimo, ganho/risco, risco por operação, temas e silêncio |
 | `/capital 10.000,00` | Capital para o cálculo de tamanho de posição (fica só no Cloudflare KV) |
 | `/silencio` | Botões: 22h–7h, 23h–6h, ligar, desligar. Também `/silencio 22-7` |
 | `/status` | Saúde das fontes, última coleta e último resumo |
 | `/ajuda` | Lista de comandos |
 
 ## 🧭 Como ler as mensagens
+
+**Sinal (exemplo):**
+```
+🚨 SINAL — 🇮🇷 Irã / Hormuz (paz)
+Paz: 62% → 78% (+16,0 p.p., z = 2,8) em 2 h
+Semáforo: 🟢 Brent −2,1% | VIX −4,0% | XLE −0,6%
+🔻 SHORT XLE (alt.: 🔺 LONG UAL)
+Entrada ~US$ 90,10 | 🎯 Alvo: US$ 88,48 (parcial US$ 89,29)
+🛑 Stop: US$ 90,85 | Ganho/risco: 2,2 | ⏱️ Sair até 15:00
+Esperado −2,4% | realizado −0,6% → espaço de −1,8%
+```
+- **z**: quantas vezes o movimento é maior que o normal da hora (z ≥ 2 = incomum). Calculado no log-odds, que trata igual "50%→60%" e "90%→95%".
+- **Persistência**: só vira sinal se o movimento se mantiver na leitura seguinte (≥ 50% dele).
+- **Semáforo**: 🟢 indicadores confirmam · 🟡 só a Polymarket mexeu · 🔴 indicadores contra.
+- **Esperado × realizado**: pela calibração, quanto o ativo "deveria" andar com esse Δp, e quanto já andou. Só é acionável se ainda falta ≥ 50%.
+- **🎯 acionável** só quando: par calibrado com efeito claro, a Polymarket anda **antes** do ativo, essa antecedência é > 3× a demora do alerta, o pregão está aberto e ganho/risco ≥ 1,5. Caso contrário vira **📋 informativo** (entra no resumo e no diário, para medir se teria funcionado).
+- **Acompanhamento**: avisos de 🎯 alvo parcial/final, 🛑 stop, ⏱️ prazo e ❌ "sinal invalidado — sair" (a probabilidade devolveu mais da metade).
+- **⏸️ Trava**: 2 perdas seguidas no diário → acionáveis pausados por 24 h.
+
+> ⚠️ **Limite honesto da Fase 2:** a coleta é de hora em hora, então o alerta chega 10–70 min depois do movimento. Pela regra "antecedência > 3× latência", quase todo sinal sai **📋 informativo** até a Fase 3 (Worker a cada 1–5 min). O diário mede todos assim mesmo.
 
 - **Probabilidade**: midpoint do livro (média entre compra e venda), nunca o último negócio.
 - **p.p.**: pontos percentuais. `91% (−2,0 p.p.)` = caiu de 93% para 91% em 24 h.

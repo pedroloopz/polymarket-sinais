@@ -38,7 +38,7 @@ async function tratarUpdate(update, env) {
 
   const [painel, config] = await Promise.all([lerJson(env, "painel"), lerJson(env, "config")]);
   const resultado = botao
-    ? tratarBotao(botao.data, chatId, painel, config)
+    ? tratarBotao(botao.data, chatId, painel, config, botao.message?.message_id)
     : tratarMensagem(mensagem?.text || "", chatId, painel, config);
 
   if (resultado.config) await env.ESTADO.put("config", JSON.stringify(resultado.config));
