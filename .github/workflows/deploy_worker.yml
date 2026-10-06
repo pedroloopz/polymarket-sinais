@@ -142,9 +142,14 @@ jobs:
       - name: Avisar no Telegram
         if: success() && env.TELEGRAM_CHAT_ID != ''
         run: |
-          curl -s -o /dev/null "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          r=$(curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
             -d chat_id="$TELEGRAM_CHAT_ID" \
-            --data-urlencode text="✅ Worker publicado. Mande /ajuda para ver os comandos."
+            --data-urlencode text="✅ Worker publicado. Mande /ajuda para ver os comandos.")
+          if ! echo "$r" | jq -e '.ok' > /dev/null; then
+            erro=$(echo "$r" | jq -r '.description')
+            echo "::error::O Telegram recusou a mensagem: $erro. Confira o Secret TELEGRAM_CHAT_ID (mande /start ao bot: ele responde com o seu ID) e se você já iniciou a conversa com o bot."
+            exit 1
+          fi
 
       - name: Avisar falha no Telegram
         if: failure()
