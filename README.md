@@ -13,7 +13,7 @@ Bot de **sinais** que lê mercados de previsão (Polymarket), cruza com preços 
 
 ---
 
-## 📍 Situação: Fase 2 (inteligência)
+## 📍 Situação: Fase 3 (quase tempo real e vantagem)
 
 | Módulo | Situação |
 |---|---|
@@ -31,7 +31,10 @@ Bot de **sinais** que lê mercados de previsão (Polymarket), cruza com preços 
 | 11 / 11b — Stop por ATR, tamanho, alvo, ganho/risco, stop de tempo, invalidação, acompanhamento | ✅ (de hora em hora; 1–5 min na Fase 3) |
 | 12 — Urgência, silêncio e trava após 2 perdas | ✅ |
 | Placar semanal (domingo 21h45) e `/config` | ✅ |
-| 5, 6, 9, Kalshi, GDELT, alertas a cada 1–5 min | Fase 3 |
+| ⚡ Quase tempo real: Worker a cada 5 min (detecção, plano com preço do Yahoo, alvo/stop/prazo/invalidação) | ✅ |
+| 5 — Nota de risco de manipulação (concentração, Kalshi, volume, reversão, GDELT, palavras ditas) | ✅ |
+| 6 — Carteiras vencedoras: ranking diário + alerta quando abrem/aumentam posição | ✅ |
+| 9 — Agenda (FOMC, payroll, CPI das fontes oficiais; Copom/eleição/OPEP+ em `config/agenda.yaml`) + alerta na véspera | ✅ |
 | 14 (X), Truth Social, Claude API, painel HTML | Fase 4 |
 
 ---
@@ -105,6 +108,8 @@ App do GitHub → repositório → **Actions** → toque no workflow → **Run w
 | `/ranking` | Calibração: para cada tema, os ativos que mais reagem, com defasagem e efeito |
 | `/placar` | Placar da semana (domingo) ou do diário |
 | `/config` | Botões para z-score, volume mínimo, ganho/risco, risco por operação, temas e silêncio |
+| `/agenda` | FOMC, Copom, payroll, CPI, eleição e balanços dos próximos 30 dias (confirmada/estimada) |
+| `/baleias` | Top 20 carteiras por acerto em mercados encerrados de geopolítica, economia e balanços |
 | `/capital 10.000,00` | Capital para o cálculo de tamanho de posição (fica só no Cloudflare KV) |
 | `/silencio` | Botões: 22h–7h, 23h–6h, ligar, desligar. Também `/silencio 22-7` |
 | `/status` | Saúde das fontes, última coleta e último resumo |
@@ -129,8 +134,13 @@ Esperado −2,4% | realizado −0,6% → espaço de −1,8%
 - **🎯 acionável** só quando: par calibrado com efeito claro, a Polymarket anda **antes** do ativo, essa antecedência é > 3× a demora do alerta, o pregão está aberto e ganho/risco ≥ 1,5. Caso contrário vira **📋 informativo** (entra no resumo e no diário, para medir se teria funcionado).
 - **Acompanhamento**: avisos de 🎯 alvo parcial/final, 🛑 stop, ⏱️ prazo e ❌ "sinal invalidado — sair" (a probabilidade devolveu mais da metade).
 - **⏸️ Trava**: 2 perdas seguidas no diário → acionáveis pausados por 24 h.
+- **🕵️ Manipulação** (🟢/🟡/🔴): soma de critérios — 5 carteiras com ≥ 60% das cotas (entre os 20 maiores), Kalshi divergindo ≥ 5 p.p., movimento ≥ 3 p.p. com < US$ 50 mil negociados, livro raso, sobe-e-volta em < 6 h, movimento sem pico de notícias (GDELT). Mercados de "palavras ditas" são sempre 🔴. 🔴 nunca vira sinal acionável. É **risco**, nunca acusação.
+- **🐋 Baleia**: alerta quando uma das 20 carteiras de maior acerto abre ou aumenta ≥ 20% (e ≥ US$ 5 mil) uma posição num mercado dos temas.
+- **📅 Véspera**: no resumo do dia anterior a cada evento da agenda, chega a probabilidade atual dos mercados ligados.
 
-> ⚠️ **Limite honesto da Fase 2:** a coleta é de hora em hora, então o alerta chega 10–70 min depois do movimento. Pela regra "antecedência > 3× latência", quase todo sinal sai **📋 informativo** até a Fase 3 (Worker a cada 1–5 min). O diário mede todos assim mesmo.
+> ⚡ **Fase 3:** os 25 mercados mais negociados são checados **a cada 5 min** pelo Worker; o alerta chega 5–15 min depois do movimento (antes: 10–70 min). Sinais vindos do Worker têm ⚡ no título. O resto continua de hora em hora.
+>
+> 📉 **Calibração honesta:** na 1ª calibração real, com o critério antigo (|t| ≥ 2), 77 de 100 pares "passavam" — falso positivo de testar 25 defasagens. Agora o par só vale com |t| ≥ 3,3 (Bonferroni) **e** o mesmo sinal na 1ª e na 2ª metade do mês. Resultado esperado: poucos pares acionáveis. É assim que deve ser.
 
 - **Probabilidade**: midpoint do livro (média entre compra e venda), nunca o último negócio.
 - **p.p.**: pontos percentuais. `91% (−2,0 p.p.)` = caiu de 93% para 91% em 24 h.
@@ -167,10 +177,11 @@ GitHub Actions (cron)                    Cloudflare (grátis)
 | Recurso | Limite | Nosso uso |
 |---|---|---|
 | Worker: CPU por requisição | 10 ms | só repassa texto pronto (≈1 ms) |
-| Worker: Cron Triggers por conta | 5 | 0 na Fase 1 (Fase 3 usa 1) |
+| Worker: Cron Triggers por conta | 5 | 1 (a cada 5 min) |
+| Worker: CPU por ciclo de 5 min | 10 ms | ≈ 0,6 ms (medido com 25 mercados) |
 | Worker: subrequisições | 50 por requisição | até 2 |
 | KV: leituras | 100.000/dia | ≈2 por comando |
-| KV: gravações | 1.000/dia | ≈25/dia + comandos |
+| KV: gravações | 1.000/dia | ≈ 288 (Worker) + 72 (Actions) + comandos ≈ 370/dia |
 | Actions (repo **privado**) | 2.000 min/mês **somados em todos os seus repos privados** | ver abaixo |
 | Actions (repo **público**) | ilimitado | — |
 
@@ -179,7 +190,11 @@ GitHub Actions (cron)                    Cloudflare (grátis)
 **Fontes e endpoints** (sem chave de API, somente leitura):
 - Gamma: `GET https://gamma-api.polymarket.com/public-search`, `GET /events/{id}`
 - CLOB: `POST https://clob.polymarket.com/midpoints`, `GET /midpoint`, `GET /prices-history`
-- Preços: `yfinance` (não oficial; quando falha, o resumo mostra "⚠️ Fonte … indisponível")
+- Preços: `yfinance` (não oficial; quando falha, o resumo mostra "⚠️ Fonte … indisponível"); no Worker, o endpoint `query1.finance.yahoo.com/v8/finance/chart`
+- Data API: `GET https://data-api.polymarket.com/holders`, `/positions`, `/closed-positions`
+- Kalshi: `GET https://api.elections.kalshi.com/trade-api/v2/events?status=open&with_nested_markets=true`
+- GDELT: `GET https://api.gdeltproject.org/api/v2/doc/doc?mode=TimelineVol&format=json`
+- Agenda: `federalreserve.gov/monetarypolicy/fomccalendars.htm`, `bls.gov/schedule/news_release/empsit.htm` e `cpi.htm` (HTML; se o formato mudar, aparece "⚠️ indisponível"). Copom, eleição e OPEP+ não têm fonte oficial legível por máquina: edite `config/agenda.yaml` pelo GitHub no celular.
 
 ## 🛠️ Desenvolvimento (Claude Code na nuvem)
 
@@ -198,12 +213,14 @@ Se o ambiente do Claude Code bloquear as APIs, libere em **Configurações do am
 ## 📁 Estrutura
 
 ```
-config/           temas.yaml, ativos.yaml, regras.yaml, carteiras_seguidas.yaml
-src/bot/coleta    polymarket_gamma.py, polymarket_clob.py, precos.py, coletor.py
-src/bot/analise   mercados.py, novos.py, prazos.py, balancos.py
-src/bot/saida     telegram.py, resumo.py, painel.py
+config/           temas.yaml, ativos.yaml, regras.yaml, carteiras_seguidas.yaml, agenda.yaml
+src/bot/coleta    polymarket_gamma.py, polymarket_clob.py, polymarket_data.py, kalshi.py, gdelt.py,
+                  agenda.py, precos.py, coletor.py
+src/bot/analise   mercados.py, novos.py, prazos.py, balancos.py, calibracao.py, sinais.py, semaforo.py,
+                  risco.py, acompanhamento.py, protecao.py, manipulacao.py, baleias.py, plataformas.py
+src/bot/saida     telegram.py, resumo.py, painel.py, vigia.py (ponte com o Worker)
 src/bot/diario    registro.py, avaliacao.py, placar.py
 src/bot           db.py, kv.py, config.py, http.py, formato.py, tarefas.py, main.py
-worker/           Cloudflare Worker (webhook do Telegram)
+worker/           Cloudflare Worker: comandos (comandos.js) e tempo real a cada 5 min (tempo_real.js)
 .github/          workflows + ação "preparar" + scripts
 ```

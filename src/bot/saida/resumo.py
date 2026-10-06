@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 
 from bot import formato as f
+from bot.analise import manipulacao
 from bot.analise.mercados import Linha, agrupar_por_evento, ativos
 from bot.config import Config
 
@@ -18,9 +19,20 @@ def _rotulo_grupo(grupo: list[Linha]) -> str:
     return f.encurtar(grupo[0].evento_titulo or grupo[0].pergunta, 45)
 
 
-def linha_grupo(grupo: list[Linha], emoji: str, volume_min_sinal: float) -> str:
+def _risco(con: sqlite3.Connection | None, grupo: list[Linha]) -> str:
+    """ " ⚠️ risco 🟡" quando algum mercado do grupo tem nota de manipulação média ou alta."""
+    if con is None:
+        return ""
+    notas = [n.nota for x in grupo if (n := manipulacao.ler(con, x.id))]
+    pior = "🔴" if "🔴" in notas else ("🟡" if "🟡" in notas else "")
+    return f" ⚠️ risco {pior}" if pior else ""
+
+
+def linha_grupo(
+    grupo: list[Linha], emoji: str, volume_min_sinal: float, con: sqlite3.Connection | None = None
+) -> str:
     """Uma linha do resumo. Grupo = mercados do mesmo evento (ex.: candidatos)."""
-    vigia = "" if sum(x.volume for x in grupo) >= volume_min_sinal else " 👁️"
+    vigia = ("" if sum(x.volume for x in grupo) >= volume_min_sinal else " 👁️") + _risco(con, grupo)
     if len(grupo) == 1:
         x = grupo[0]
         var = f" ({f.pp(x.var_24h)})" if x.var_24h is not None else ""
@@ -35,7 +47,9 @@ def linhas_tema(con: sqlite3.Connection, cfg: Config, chave: str, agora: datetim
     minimo = filtros.get("volume_min_exibir_usd", 0)
     linhas = [x for x in ativos(con, agora, tema=chave) if x.volume >= minimo and not x.palavras_ditas]
     grupos = agrupar_por_evento(linhas)[:maximo]
-    return [linha_grupo(g, tema.get("emoji", "•"), filtros.get("volume_min_sinal_usd", 0)) for g in grupos]
+    return [
+        linha_grupo(g, tema.get("emoji", "•"), filtros.get("volume_min_sinal_usd", 0), con) for g in grupos
+    ]
 
 
 def resumo_diario(
@@ -50,6 +64,7 @@ def resumo_diario(
     sinais_acionaveis: list[str],
     fontes: dict[str, str],
     informativos: list[str] | None = None,
+    hoje: list[str] | None = None,
 ) -> str:
     por_tema = cfg.regras.get("filtros", {}).get("mercados_por_tema_resumo", 2)
     partes = [f"🗓️ <b>{f.data(agora)} — Mercados de previsão</b>"]
@@ -67,7 +82,7 @@ def resumo_diario(
         )
     if n_novos:
         partes.append(f"🆕 Mercados novos (24 h): {n_novos} — /novos")
-    partes.append("📅 Hoje: — (agenda chega na Fase 3)")
+    partes.append("📅 Hoje: " + ("; ".join(hoje) if hoje else "—"))
     if sinais_acionaveis:
         partes.append("🎯 Sinais acionáveis: " + "; ".join(sinais_acionaveis))
     else:
@@ -98,6 +113,15 @@ def texto_tema(con: sqlite3.Connection, cfg: Config, chave: str, agora: datetime
         vol = f.volume(sum(m.volume for m in grupo))
         aviso = " 🔴 palavras ditas (nunca gera sinal)" if x.palavras_ditas else ""
         partes.append(f"\n• {link}{aviso}\n  {prazo} | vol. {vol}")
+        nota = manipulacao.ler(con, x.id)
+        kal = con.execute("SELECT prob FROM kalshi_pares WHERE mercado_id = ?", (x.id,)).fetchone()
+        extras = []
+        if nota:
+            extras.append(f"🕵️ {nota.texto}")
+        if kal and kal["prob"] is not None:
+            extras.append(f"Kalshi {f.prob(kal['prob'])}")
+        if extras:
+            partes.append("  " + " | ".join(extras))
         for m in grupo[:4]:
             nome = f.esc(f.encurtar(m.item, 30)) + ": " if len(grupo) > 1 and m.item else ""
             var = f" ({f.pp(m.var_24h)} em 24 h)" if m.var_24h is not None else ""

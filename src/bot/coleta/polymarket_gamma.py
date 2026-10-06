@@ -38,6 +38,7 @@ class Mercado:
     var_24h: float | None
     ativo: bool
     fechado: bool
+    condicao: str = ""
 
     @property
     def link(self) -> str:
@@ -92,6 +93,7 @@ def parse_mercado(m: dict, evento: dict | None = None) -> Mercado | None:
         var_24h=_float(m.get("oneDayPriceChange")),
         ativo=bool(m.get("active", True)),
         fechado=bool(m.get("closed", False)),
+        condicao=m.get("conditionId") or "",
     )
 
 
