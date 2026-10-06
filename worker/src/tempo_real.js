@@ -296,6 +296,7 @@ export async function ciclo({ vigia, rt, ack, agora, buscarMids, buscarPreco, en
   const r = vigia.regras;
   const estado = {
     v: 1, seq: rt?.seq || 0, leituras: rt?.leituras || {}, ultimo_sinal: rt?.ultimo_sinal || {},
+    x_feitos: rt?.x_feitos || [], x_auto: rt?.x_auto || null,
     abertos_rt: rt?.abertos_rt || [], fechados: rt?.fechados || [], parciais: rt?.parciais || [],
     eventos: (rt?.eventos || []).filter((e) => e.seq > (ack || 0)).slice(-200),
   };
@@ -401,12 +402,22 @@ export function buscadores(env) {
   };
 }
 
-export async function rodar(env, agora = new Date()) {
+export async function rodar(env, agora = new Date(), { rotinaX } = {}) {
   const [vigia, rt, ack] = await Promise.all([
     env.ESTADO.get("vigia", "json"), env.ESTADO.get("rt", "json"), env.ESTADO.get("rt_ack"),
   ]);
   if (!vigia?.mercados || Date.parse(vigia.gerado_em) < agora.getTime() - 3 * 60 * MIN) return null; // vigia velha: espera as Actions
-  const estado = await ciclo({ vigia, rt, ack: Number(ack || 0), agora, ...buscadores(env) });
+  const b = buscadores(env);
+  let estado = await ciclo({ vigia, rt, ack: Number(ack || 0), agora, ...b });
+  if (rotinaX) {
+    // Posts do X: falha aqui nunca impede de gravar o estado do tempo real.
+    try {
+      const novos = estado.eventos.filter((e) => e.tipo === "sinal" && e.seq > (rt?.seq || 0)).map((e) => e.sinal);
+      estado = await rotinaX(env, estado, agora, { novosSinais: novos, buscarPreco: b.buscarPreco, silencio: emSilencio(vigia.regras.silencio, agora) });
+    } catch (erro) {
+      console.log(JSON.stringify({ evento: "posts_x_erro", erro: String(erro) }));
+    }
+  }
   await env.ESTADO.put("rt", JSON.stringify(estado));
   return estado;
 }

@@ -1,0 +1,414 @@
+// Módulo 14 — posts para o X (sem API do X: o bot entrega o texto pronto e o botão "Abrir no X").
+// Texto escrito pelo Claude (API da Anthropic) a partir da "x_pauta" que as Actions publicam.
+// Regras que o CÓDIGO garante (não dependem do modelo):
+// - nada de "compre/venda/entre/alvo/stop" em post público (Resolução CVM 20/2021);
+// - linha "📌 Minha posição" escrita pelo código, a partir das posições reais;
+// - ≤ 280 caracteres por post e no máximo 2 emojis no corpo;
+// - ativo de baixa liquidez nunca aparece (anti pump-and-dump, Resolução CVM 62/2022).
+import Anthropic from "@anthropic-ai/sdk";
+
+// Recomendação explícita (imperativo / chamada para operar). "venda" e "entre" sozinhos são palavras
+// comuns ("venda de petróleo", "entre 40% e 50%"), por isso só entram em expressões de chamada.
+export const PROIBIDAS =
+  /\b(compre|comprem|compra j[aá]|vendam|venda j[aá]|entre j[aá]|entrem|entrar agora|hora de (comprar|vender|entrar|sair|shortear)|pre[cç]o[- ]alvo|alvo de|stop( loss)?|shorteiem|shorteie)\b/i;
+const EMOJI = /\p{Extended_Pictographic}/gu;
+const LIMITE = 280;
+
+export const ESTILO = `Você escreve posts para o X do perfil {PERFIL}, série "🔮 Termômetro do Caos", sobre mercados de previsão (Polymarket, Kalshi) e o que eles dizem sobre o mercado financeiro.
+
+VOZ: um humano puto da vida que briga, toma posição e não pede licença. Português do Brasil, coloquial, frases curtas, verbos fortes. Pode xingar e usar palavrão (porra, caralho, merda, puta que pariu) contra o MERCADO, a NARRATIVA, a MANCHETE, o "consenso", o "jornalismo econômico", a situação. Zero "talvez", zero "pode ser que" quando o dado é claro; quando o dado está dividido, diga "o dado está dividido" com a mesma raiva.
+
+PRIMEIRA LINHA É TUDO: gancho com número e contraste. Ex.: "A guerra acabou pro mercado. Só a TV ainda não percebeu, porra." / "Em 40 minutos, US$ 3 milhões mudaram de lado. O petróleo ainda tá dormindo."
+
+TERMINE com um veredito claro numa linha: "🟢 mercado bom", "🔴 mercado ruim" ou "⚠️ mercado mentindo" (use este quando houver risco de manipulação ou divergência Polymarket × Kalshi), com o motivo.
+
+LIMITES INEGOCIÁVEIS (quebrar qualquer um invalida o post):
+1. Palavrão NUNCA contra pessoas, grupos ou instituições identificáveis: nada de xingar candidato, político, partido, autoridade, empresa, jornalista, eleitor ou qualquer grupo. Briga com o mercado e a narrativa, não com gente.
+2. Política (eleição etc.): veredito só sobre o MERCADO (probabilidade, volume, manipulação). Nunca torcida, ataque ou elogio a candidato ou partido.
+3. NUNCA escreva "compre", "venda", "entre", "alvo", "preço-alvo", "stop" ou qualquer recomendação de ativo. Opinião sobre o cenário, sim; recomendação, não.
+4. Use SÓ números que estão nos dados. Não arredonde para impressionar. Cite a fonte (Polymarket, Kalshi).
+5. Previsão nunca vira certeza: o mercado "dá X%", não "vai acontecer".
+6. Máximo 2 emojis no corpo do post (o veredito conta). Sem hashtags.
+7. NÃO escreva a linha "📌 Minha posição" — o sistema acrescenta.
+8. Cada post cabe em {LIMITE} caracteres.`;
+
+const SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["posts"],
+  properties: {
+    posts: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["texto", "gancho"],
+        properties: {
+          texto: { type: "string" },
+          gancho: { type: "string", enum: ["contraste", "numero_choque", "contrarian", "denuncia", "pergunta_retorica"] },
+        },
+      },
+    },
+  },
+};
+
+const PEDIDOS = {
+  diario: "Escreva 2 versões (ganchos diferentes) do post diário com o maior destaque. Pode citar um segundo destaque se couber.",
+  virada: "VIRADA: movimento brusco agora. Escreva 2 versões de post curto (até 200 caracteres) para sair rápido.",
+  fio: "Escreva UM fio de 4 a 6 posts, na ordem: gancho → o que mudou → por que importa → quem ganha e quem perde no mercado → veredito. Cada item de 'posts' é um post do fio.",
+  placar: "Escreva 2 versões do post '📒 Placar da Semana' com os acertos E os erros dos sinais da semana. Transparência brutal: erro é erro.",
+  saida: "Escreva 2 versões do post de SAÍDA da posição: diga que zerou, o resultado (ganho ou perda, sem esconder) e o que o mercado de previsão mostrou. Sem recomendar nada.",
+};
+const AJUSTES = {
+  outra: "Escreva versões novas, com outro ângulo e outro gancho.",
+  forte: "Mais forte: mais raiva, mais palavrão (contra o mercado/narrativa), gancho mais agressivo.",
+  sobrio: "Mais sóbrio: mesma posição firme, sem palavrão, tom de analista seco.",
+};
+
+// ---------- posições ----------
+const nome = (t) => t.replace(/\.SA$/, "");
+const data = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
+
+export function posicoesEfetivas(manuais, auto) {
+  return { ...(auto || {}), ...(manuais || {}) };
+}
+
+export function linhaPosicao(posicoes, tickers, liquidez = {}, liquidezMin = 0) {
+  const relevantes = Object.entries(posicoes || {})
+    .filter(([t]) => !tickers || tickers.map(nome).includes(nome(t)))
+    .filter(([t]) => liquidez[t] == null || liquidez[t] >= liquidezMin);
+  if (!relevantes.length) return "📌 Sem posição.";
+  const partes = relevantes.slice(0, 3).map(([t, p]) => `${p.lado} em ${nome(t)}${p.desde ? ` desde ${data(p.desde)}` : ""}`);
+  return `📌 Minha posição: ${partes.join("; ")}. Não é recomendação.`;
+}
+
+// ---------- validação ----------
+export function validar(texto, limite = LIMITE) {
+  const erros = [];
+  if (PROIBIDAS.test(texto)) erros.push("palavra de recomendação proibida");
+  if (texto.length > limite) erros.push(`passou de ${limite} caracteres`);
+  if ((texto.match(EMOJI) || []).length > 2) erros.push("mais de 2 emojis");
+  if (/📌/.test(texto)) erros.push("escreveu a linha de posição");
+  return erros;
+}
+
+export function intent(texto) {
+  return `https://x.com/intent/post?text=${encodeURIComponent(texto)}`;
+}
+
+// ---------- geração ----------
+export function montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil }) {
+  const limiteCorpo = (tipo === "virada" ? 200 : LIMITE) - (tipo === "fio" ? 0 : posLinha.length + 2);
+  const system = ESTILO.replace("{PERFIL}", perfil).replace("{LIMITE}", String(limiteCorpo));
+  const conteudo = {
+    pedido: PEDIDOS[tipo],
+    ajuste: ajuste ? AJUSTES[ajuste] : null,
+    limite_caracteres_por_post: limiteCorpo,
+    dados,
+    posts_que_mais_engajaram: exemplos?.length ? exemplos : undefined,
+  };
+  return { system, user: JSON.stringify(conteudo), limiteCorpo };
+}
+
+// fallbacks "default" e effort só nos modelos que aceitam (Haiku 4.5 recusaria os dois).
+const COM_FALLBACK = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);
+export function pedidoApi(cfg, system, mensagens) {
+  const modelo = cfg?.modelo || "claude-opus-5-5";
+  const pedido = {
+    model: modelo,
+    max_tokens: 4000,
+    output_config: { format: { type: "json_schema", schema: SCHEMA } },
+    system,
+    messages: mensagens,
+  };
+  if (!modelo.startsWith("claude-haiku")) pedido.output_config.effort = cfg?.effort || "low";
+  if (COM_FALLBACK.has(modelo)) {
+    pedido.betas = ["server-side-fallback-2026-07-01"];
+    pedido.fallbacks = "default";
+  }
+  return pedido;
+}
+
+export async function gerar({ env, tipo, dados, posLinha, ajuste, exemplos, perfil, cfg, criarCliente }) {
+  const { system, user, limiteCorpo } = montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil });
+  if (!env.ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY === "-") return modeloFixo(tipo, dados, posLinha);
+  const client = criarCliente ? criarCliente(env) : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 1, timeout: 25_000 });
+  let mensagens = [{ role: "user", content: user }];
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const resp = await client.beta.messages.create(pedidoApi(cfg, system, mensagens));
+    if (resp.stop_reason === "refusal") return modeloFixo(tipo, dados, posLinha);
+    const bloco = resp.content.find((b) => b.type === "text");
+    let posts = [];
+    try {
+      posts = JSON.parse(bloco?.text || "{}").posts || [];
+    } catch {
+      posts = [];
+    }
+    const limpos = posts.map((p) => ({ ...p, texto: p.texto.trim() }));
+    const ruins = limpos.map((p) => validar(p.texto, limiteCorpo));
+    const bons = limpos.filter((_, i) => !ruins[i].length);
+    const fioOk = tipo === "fio" ? bons.length === limpos.length && bons.length >= 4 : bons.length > 0;
+    if (fioOk) return finalizar(tipo, bons, posLinha);
+    const problemas = [...new Set(ruins.flat())].join("; ") || "resposta vazia";
+    mensagens = [
+      ...mensagens,
+      { role: "assistant", content: bloco?.text || "{}" },
+      { role: "user", content: `Refaça. Problemas: ${problemas}. Respeite os limites.` },
+    ];
+  }
+  return modeloFixo(tipo, dados, posLinha);
+}
+
+function finalizar(tipo, posts, posLinha) {
+  if (tipo === "fio") {
+    const ultimo = posts.length - 1;
+    return posts.map((p, i) => ({ ...p, texto: i === ultimo ? `${p.texto}\n\n${posLinha}` : p.texto }));
+  }
+  return posts.slice(0, 2).map((p) => ({ ...p, texto: `${p.texto}\n\n${posLinha}` }));
+}
+
+// Sem chave da Anthropic (ou se o modelo recusar): texto de modelo, seco mas correto.
+export function modeloFixo(tipo, dados, posLinha) {
+  const d = dados?.destaques?.[0] || dados?.destaque || null;
+  let corpo;
+  if (tipo === "placar") corpo = "📒 Placar da Semana: os números estão no Telegram. Acerto e erro, tudo à vista.";
+  else if (tipo === "saida") corpo = `Zerei ${nome(dados.ticker)}. Resultado: ${dados.resultado_txt}. Sem drama, sem esconder.`;
+  else if (d) {
+    const v = d.var_24h_pp ?? d.dp_pp ?? 0;
+    corpo = `${d.emoji || ""} ${d.pergunta}: ${Math.round(d.prob * 100)}% na Polymarket (${v > 0 ? "+" : ""}${String(v).replace(".", ",")} p.p. em 24 h).\n${d.manipulacao === "🔴" || d.manipulacao === "🟡" ? "⚠️ mercado mentindo? Risco de manipulação no radar." : v > 0 ? "🟢 o mercado tá apostando forte." : "🔴 o mercado tá correndo disso."}`;
+  } else corpo = "Mercados de previsão parados hoje. Silêncio também é dado.";
+  return [{ texto: `${corpo.slice(0, LIMITE - posLinha.length - 2)}\n\n${posLinha}`, gancho: "contraste" }];
+}
+
+// ---------- mensagem no Telegram ----------
+export function teclado(pid, posts, tipo) {
+  const abrir =
+    tipo === "fio"
+      ? [{ text: "✅ Abrir 1º post no X", url: intent(posts[0].texto) }]
+      : posts.map((p, i) => ({ text: `✅ Abrir no X (${"AB"[i]})`, url: intent(p.texto) }));
+  return [
+    abrir,
+    [
+      { text: "🔄 Outra versão", callback_data: `x:outra:${pid}` },
+      { text: "🔥 Mais forte", callback_data: `x:forte:${pid}` },
+      { text: "🧊 Mais sóbrio", callback_data: `x:sobrio:${pid}` },
+    ],
+  ];
+}
+
+const TITULOS = { diario: "🔮 Termômetro do Caos", virada: "⚡ Alerta de virada", fio: "🧵 Fio", placar: "📒 Placar da Semana", saida: "📌 Post de saída" };
+const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+export function textoTelegram(tipo, posts, aviso = "") {
+  const corpo =
+    tipo === "fio"
+      ? posts.map((p, i) => `<b>${i + 1}/${posts.length}</b>\n${esc(p.texto)}`).join("\n\n")
+      : posts.map((p, i) => `<b>${"AB"[i]})</b> ${esc(p.texto)}\n<i>${p.texto.length}/280</i>`).join("\n\n");
+  return `${TITULOS[tipo]} — rascunho para o X${aviso ? `\n${aviso}` : ""}\n\n${corpo}`;
+}
+
+// ---------- orquestração (Worker) ----------
+async function kvJson(env, chave, padrao) {
+  try {
+    return (await env.ESTADO.get(chave, "json")) ?? padrao;
+  } catch {
+    return padrao;
+  }
+}
+
+export async function telegram(env, metodo, corpo) {
+  const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${metodo}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(corpo),
+  });
+  return r.ok ? (await r.json()).result : null;
+}
+
+async function enviarFoto(env, png64, legenda, botoes, silencioso = false) {
+  const bytes = Uint8Array.from(atob(png64), (c) => c.charCodeAt(0));
+  const form = new FormData();
+  form.append("chat_id", String(env.TELEGRAM_CHAT_ID));
+  form.append("photo", new Blob([bytes], { type: "image/png" }), "termometro.png");
+  form.append("caption", legenda);
+  form.append("parse_mode", "HTML");
+  form.append("reply_markup", JSON.stringify({ inline_keyboard: botoes }));
+  form.append("disable_notification", String(silencioso));
+  const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: form });
+  return r.ok ? (await r.json()).result : null;
+}
+
+function exemplosEngajamento(registros) {
+  return [...(registros || [])]
+    .sort((a, b) => b.curtidas + 2 * b.reposts - (a.curtidas + 2 * a.reposts))
+    .slice(0, 3)
+    .map((r) => r.texto);
+}
+
+// Gera, manda no Telegram e guarda o estado do post (para os botões e o /engajamento).
+export async function publicarRascunho(env, { tipo, dados, tickers, ajuste = null, pidAnterior = null, aviso = "", agora = new Date(), silencioso = false }) {
+  const [pauta, manuais, eng] = await Promise.all([
+    kvJson(env, "x_pauta", {}), kvJson(env, "posicoes", {}), kvJson(env, "x_engajamento", []),
+  ]);
+  const posicoes = posicoesEfetivas(manuais, pauta.posicoes_auto);
+  const posLinha = linhaPosicao(posicoes, tickers, pauta.liquidez || {}, pauta.liquidez_min || 0);
+  const posts = await gerar({
+    env, tipo, dados, posLinha, ajuste, exemplos: exemplosEngajamento(eng), perfil: pauta.perfil || "@pedroloopz", cfg: pauta.x,
+  });
+  const pid = pidAnterior || `${tipo}-${agora.getTime().toString(36)}`;
+  const texto = textoTelegram(tipo, posts, aviso);
+  const botoes = teclado(pid, posts, tipo);
+  const comFoto = tipo === "diario" && pauta.grafico_png && texto.length <= 1024;
+  const msg = comFoto
+    ? await enviarFoto(env, pauta.grafico_png, texto, botoes, silencioso)
+    : await telegram(env, "sendMessage", { chat_id: env.TELEGRAM_CHAT_ID, text: texto, parse_mode: "HTML", disable_web_page_preview: true, disable_notification: silencioso, reply_markup: { inline_keyboard: botoes } });
+  const estado = await kvJson(env, "x_posts", {});
+  estado[pid] = {
+    tipo, dados, tickers, posts, ts: agora.toISOString(), message_id: msg?.message_id ?? null,
+    posicoes_citadas: posLinha.startsWith("📌 Minha posição") ? Object.keys(posicoes).filter((t) => !tickers || tickers.map(nome).includes(nome(t))) : [],
+  };
+  const chaves = Object.keys(estado).sort((a, b) => Date.parse(estado[b].ts) - Date.parse(estado[a].ts)).slice(0, 30);
+  await env.ESTADO.put("x_posts", JSON.stringify(Object.fromEntries(chaves.map((k) => [k, estado[k]]))));
+  return { pid, posts, message_id: msg?.message_id };
+}
+
+export async function regenerar(env, acao, pid) {
+  const estado = await kvJson(env, "x_posts", {});
+  const p = estado[pid];
+  if (!p) return null;
+  return publicarRascunho(env, { tipo: p.tipo, dados: p.dados, tickers: p.tickers, ajuste: acao });
+}
+
+// Saída de posição: post obrigatório se houve post citando o ativo há menos de 24 h.
+export async function postSaida(env, ticker, posicao, precoSaida, agora = new Date()) {
+  const r = posicao.lado === "vendido" ? posicao.preco / precoSaida - 1 : precoSaida / posicao.preco - 1;
+  const resultado_txt = `${r >= 0 ? "+" : "−"}${Math.abs(r * 100).toFixed(1).replace(".", ",")}%`;
+  const estado = await kvJson(env, "x_posts", {});
+  const recente = Object.values(estado).some(
+    (p) => (p.posicoes_citadas || []).map(nome).includes(nome(ticker)) && agora.getTime() - Date.parse(p.ts) < 24 * 3600e3,
+  );
+  const aviso = recente ? "⚠️ <b>Obrigatório publicar</b>: você zerou menos de 24 h depois de um post sobre o ativo." : "";
+  await publicarRascunho(env, {
+    tipo: "saida",
+    dados: { ticker: nome(ticker), lado: posicao.lado, desde: posicao.desde, preco_entrada: posicao.preco, preco_saida: precoSaida, resultado_txt },
+    tickers: [], aviso, agora,
+  });
+  return { resultado: r, resultado_txt, obrigatorio: recente };
+}
+
+// ---------- comandos do Telegram ----------
+export async function comandoX(nomeCmd, args, env, { buscarPreco, replyTo, agora = new Date() } = {}) {
+  const responder = (t) => [{ texto: t }];
+  if (nomeCmd === "posicoes") {
+    const [manuais, pauta] = await Promise.all([kvJson(env, "posicoes", {}), kvJson(env, "x_pauta", {})]);
+    const todas = posicoesEfetivas(manuais, pauta.posicoes_auto);
+    if (!Object.keys(todas).length) return responder("📌 Nenhuma posição. Use /posicao comprado PETR4");
+    const liq = pauta.liquidez || {};
+    return responder(["📌 <b>Posições declaradas</b>", ...Object.entries(todas).map(([t, p]) => {
+      const baixa = liq[t] != null && liq[t] < (pauta.liquidez_min || 0) ? " — baixa liquidez: fora dos posts" : "";
+      return `• ${p.lado} em ${nome(t)} desde ${data(p.desde)}${p.origem ? ` (${p.origem})` : ""}${baixa}`;
+    })].join("\n"));
+  }
+  if (nomeCmd === "posicao") {
+    const m = /^(comprado|vendido)\s+([A-Za-z0-9.^=-]+)(?:\s+([\d.,]+))?$/i.exec(args);
+    if (!m) return responder("Formato: /posicao comprado PETR4 ou /posicao vendido XLE 90,10");
+    const lado = m[1].toLowerCase();
+    let t = m[2].toUpperCase();
+    if (/^[A-Z]{4}\d{1,2}$/.test(t)) t += ".SA";
+    let preco = m[3] ? Number(m[3].replace(/\./g, "").replace(",", ".")) : null;
+    if (!preco && buscarPreco) preco = (await buscarPreco(t))?.preco ?? null;
+    if (!preco) return responder(`Não achei o preço de ${nome(t)}. Informe: /posicao ${lado} ${nome(t)} 12,34`);
+    const manuais = await kvJson(env, "posicoes", {});
+    manuais[t] = { lado, preco, desde: agora.toISOString().slice(0, 10), origem: "telegram" };
+    await env.ESTADO.put("posicoes", JSON.stringify(manuais));
+    return responder(`📌 Registrado: ${lado} em ${nome(t)} a ${preco.toFixed(2).replace(".", ",")}. Entra nos posts sobre o tema (só depois de você entrar, nunca antes).`);
+  }
+  if (nomeCmd === "zerar") {
+    const m = /^([A-Za-z0-9.^=-]+)(?:\s+([\d.,]+))?$/.exec(args);
+    if (!m) return responder("Formato: /zerar PETR4 ou /zerar PETR4 38,90");
+    const manuais = await kvJson(env, "posicoes", {});
+    const t = Object.keys(manuais).find((k) => nome(k) === nome(m[1].toUpperCase()));
+    if (!t) return responder("Essa posição não foi declarada por /posicao (as do alerta-ema saem sozinhas quando somem de lá).");
+    let preco = m[2] ? Number(m[2].replace(/\./g, "").replace(",", ".")) : null;
+    if (!preco && buscarPreco) preco = (await buscarPreco(t))?.preco ?? null;
+    if (!preco) return responder(`Não achei o preço de ${nome(t)}. Informe: /zerar ${nome(t)} 12,34`);
+    const posicao = manuais[t];
+    delete manuais[t];
+    await env.ESTADO.put("posicoes", JSON.stringify(manuais));
+    return { zerar: { ticker: t, posicao, preco }, respostas: responder(`📌 ${nome(t)} zerado. Gerando o post de saída…`) };
+  }
+  if (nomeCmd === "engajamento") {
+    const m = /^(\S+)\s+(\d+)\s+(\d+)(?:\s+([ABab]))?$/.exec(args);
+    if (!m) return responder("Formato (responda à mensagem do rascunho): /engajamento https://x.com/... 120 15 A");
+    const estado = await kvJson(env, "x_posts", {});
+    const lista = Object.entries(estado).sort((a, b) => Date.parse(b[1].ts) - Date.parse(a[1].ts));
+    const alvo = lista.find(([, p]) => replyTo && p.message_id === replyTo) || lista[0];
+    if (!alvo) return responder("Nenhum rascunho encontrado.");
+    const [pid, p] = alvo;
+    const i = (m[4] || "A").toUpperCase() === "B" ? 1 : 0;
+    const post = p.posts[i] || p.posts[0];
+    const horaLocal = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit" }).format(new Date(p.ts));
+    const registros = await kvJson(env, "x_engajamento", []);
+    registros.push({ pid, link: m[1], curtidas: Number(m[2]), reposts: Number(m[3]), formato: p.tipo, gancho: post.gancho, horario: `${horaLocal}h`, texto: post.texto, ts: agora.toISOString() });
+    await env.ESTADO.put("x_engajamento", JSON.stringify(registros.slice(-200)));
+    return responder(`📣 Anotado: ${m[2]} curtidas, ${m[3]} reposts (${p.tipo}, gancho "${post.gancho}"). O placar de domingo mostra o que funciona.`);
+  }
+  if (nomeCmd === "post") {
+    return { gerarDiario: true, respostas: responder("🔮 Escrevendo o Termômetro do Caos agora…") };
+  }
+  return null;
+}
+
+export const COMANDOS_X = new Set(["posicao", "posicoes", "zerar", "engajamento", "post"]);
+
+export async function postDiario(env, agora = new Date()) {
+  const pauta = await kvJson(env, "x_pauta", {});
+  const destaques = (pauta.destaques || []).slice(0, 2);
+  const tickers = [...new Set(destaques.flatMap((d) => d.ativos_ligados || []))];
+  return publicarRascunho(env, { tipo: "diario", dados: { destaques, placar: pauta.placar }, tickers, agora });
+}
+
+function horaBrt(agora) {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(agora);
+  const g = (t) => p.find((x) => x.type === t).value;
+  return { dia: `${g("year")}-${g("month")}-${g("day")}`, minutos: (Number(g("hour")) % 24) * 60 + Number(g("minute")) };
+}
+
+// Chamado pelo Cron Trigger (a cada 5 min): horários do post diário, pedidos das Actions
+// (fio, placar), alertas de virada e saídas automáticas das posições do alerta-ema.
+export async function rotinaX(env, estado, agora, { novosSinais = [], buscarPreco, silencio = false } = {}) {
+  const pauta = await kvJson(env, "x_pauta", null);
+  if (!pauta) return estado;
+  const feitos = new Set(estado.x_feitos || []);
+  const { dia, minutos } = horaBrt(agora);
+  for (const slot of pauta.x?.horarios || ["08:30", "10:20", "18:30"]) {
+    const [h, m] = slot.split(":").map(Number);
+    const chave = `diario:${dia}:${slot}`;
+    if (minutos >= h * 60 + m && minutos < h * 60 + m + 15 && !feitos.has(chave)) {
+      feitos.add(chave);
+      await postDiario(env, agora);
+    }
+  }
+  for (const p of await kvJson(env, "x_pedidos", [])) {
+    if (feitos.has(p.id)) continue;
+    feitos.add(p.id);
+    const tickers = p.tipo === "fio" ? p.dados?.ativos_ligados || [] : [];
+    await publicarRascunho(env, { tipo: p.tipo, dados: p.dados, tickers, agora, silencioso: silencio });
+  }
+  const zVirada = pauta.x?.virada_z_min ?? 3;
+  for (const s of novosSinais.filter((x) => Math.abs(x.z) >= zVirada)) {
+    const dados = { destaque: { pergunta: s.detalhes?.pergunta, prob: s.p_sinal, prob_antes: s.p_base, dp_pp: Math.round((s.p_sinal - s.p_base) * 1000) / 10, z: s.z, tema: s.tema } };
+    await publicarRascunho(env, { tipo: "virada", dados, tickers: [s.ativo], agora, silencioso: silencio });
+  }
+  const atual = pauta.posicoes_auto;
+  if (atual && estado.x_auto) {
+    for (const [t, pos] of Object.entries(estado.x_auto)) {
+      if (atual[t] || !pos?.preco) continue;
+      const preco = (await buscarPreco?.(t))?.preco;
+      if (preco) await postSaida(env, t, pos, preco, agora);
+    }
+  }
+  if (atual) estado.x_auto = atual;
+  estado.x_feitos = [...feitos].slice(-100);
+  return estado;
+}

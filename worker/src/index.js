@@ -1,7 +1,8 @@
 // Cloudflare Worker: webhook do Telegram (respostas na hora).
 // Fase 3: Cron Trigger a cada 5 min (tempo_real.js).
-import { autorizado, textoNaoAutorizado, tratarBotao, tratarMensagem } from "./comandos.js";
-import { rodar } from "./tempo_real.js";
+import { autorizado, normalizarComando, textoNaoAutorizado, tratarBotao, tratarMensagem } from "./comandos.js";
+import { buscadores, rodar } from "./tempo_real.js";
+import { COMANDOS_X, comandoX, postDiario, postSaida, regenerar, rotinaX } from "./x.js";
 
 const API = "https://api.telegram.org";
 
@@ -23,7 +24,7 @@ async function lerJson(env, chave) {
   }
 }
 
-async function tratarUpdate(update, env) {
+async function tratarUpdate(update, env, ctx) {
   const mensagem = update.message || update.edited_message;
   const botao = update.callback_query;
   const chatId = mensagem?.chat?.id ?? botao?.message?.chat?.id;
@@ -35,6 +36,23 @@ async function tratarUpdate(update, env) {
     return texto.startsWith("/start")
       ? [{ method: "sendMessage", chat_id: chatId, text: textoNaoAutorizado(chatId), parse_mode: "HTML" }]
       : [];
+  }
+
+  // Posts do X: botões de rascunho e comandos de posição/engajamento
+  if (botao && String(botao.data || "").startsWith("x:")) {
+    const [, acao, pid] = botao.data.split(":");
+    ctx.waitUntil(regenerar(env, acao, pid).catch((e) => console.log(JSON.stringify({ evento: "x_erro", erro: String(e) }))));
+    return [{ method: "answerCallbackQuery", callback_query_id: botao.id, text: "Escrevendo outra versão…" }];
+  }
+  const cmd = normalizarComando(mensagem?.text || "");
+  if (cmd && COMANDOS_X.has(cmd.nome)) {
+    const r = await comandoX(cmd.nome, cmd.args, env, {
+      buscarPreco: buscadores(env).buscarPreco, replyTo: mensagem?.reply_to_message?.message_id,
+    });
+    const respostas = Array.isArray(r) ? r : r?.respostas || [];
+    if (r?.zerar) ctx.waitUntil(postSaida(env, r.zerar.ticker, r.zerar.posicao, r.zerar.preco));
+    if (r?.gerarDiario) ctx.waitUntil(postDiario(env));
+    return respostas.map((x) => ({ method: "sendMessage", chat_id: chatId, text: x.texto, parse_mode: "HTML" }));
   }
 
   const [painel, config] = await Promise.all([lerJson(env, "painel"), lerJson(env, "config")]);
@@ -51,11 +69,13 @@ async function tratarUpdate(update, env) {
 export default {
   async scheduled(evento, env, ctx) {
     ctx.waitUntil(
-      rodar(env).catch((erro) => console.log(JSON.stringify({ evento: "tempo_real_erro", erro: String(erro) }))),
+      rodar(env, new Date(), { rotinaX }).catch((erro) =>
+        console.log(JSON.stringify({ evento: "tempo_real_erro", erro: String(erro) })),
+      ),
     );
   },
 
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/") {
       return new Response("polymarket-sinais: ok", { headers: { "content-type": "text/plain; charset=utf-8" } });
@@ -72,7 +92,7 @@ export default {
       return new Response("json inválido", { status: 400 });
     }
 
-    const chamadas = await tratarUpdate(update, env);
+    const chamadas = await tratarUpdate(update, env, ctx ?? { waitUntil: () => {} });
     // A última resposta volta no próprio corpo do webhook (economiza uma subrequisição);
     // as demais vão por fetch.
     const ultima = chamadas.pop();
