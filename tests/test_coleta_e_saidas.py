@@ -111,3 +111,16 @@ def test_gamma_fora_do_ar_para_cedo(con, cfg):
     res = _coletar(con, cfg, http)
     assert res.fontes["Polymarket Gamma"] == "indisponível"
     assert len(http.chamadas) == 2  # parou depois de 2 temas com erro
+
+
+def test_mercado_vencido_sai_das_telas(con, cfg, http):
+    from bot.analise.mercados import ativos
+
+    _coletar(con, cfg, http)
+    depois = AGORA + timedelta(days=2)  # m12 venceu em 08/10 03:00 UTC
+    assert "m12" in {x.id for x in ativos(con, AGORA, visto_desde_h=72)}
+    # Preço em aberto (31%): continua na tela mesmo vencido.
+    assert "m12" in {x.id for x in ativos(con, depois, visto_desde_h=72)}
+    # Preço decidido (1%): só aguarda resolução, sai da tela.
+    con.execute("UPDATE mercados SET prob = 0.01 WHERE id = 'm12'")
+    assert "m12" not in {x.id for x in ativos(con, depois, visto_desde_h=72)}

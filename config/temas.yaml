@@ -2,6 +2,7 @@
 # - buscas: textos enviados à busca da Polymarket (Gamma /public-search).
 # - incluir: a pergunta ou o título do evento precisa conter pelo menos um destes termos
 #   (sem diferenciar maiúsculas). Evita mercados que só "esbarram" na busca.
+# - exigir: a pergunta/título precisa conter TODOS estes termos (opcional).
 # - excluir: descarta se contiver algum destes termos.
 # - comando: nome do comando no Telegram (/ira, /fed...). Comandos do Telegram não aceitam acento.
 # - palavras_ditas: mercados do tipo "vai dizer X na teleconferência" — nunca geram sinal (módulo 5).
@@ -78,7 +79,9 @@ temas:
     ligado: true
     buscas: ["beat quarterly earnings", "Coinbase earnings", "MicroStrategy earnings", "Strategy earnings",
              "Robinhood earnings", "Circle earnings", "MARA earnings", "Riot earnings", "Galaxy earnings"]
-    incluir: ["earnings"]
+    incluir: ["coinbase", "microstrategy", "strategy", "robinhood", "circle", "mara", "marathon", "riot",
+              "galaxy", "coin", "mstr", "hood", "crcl", "glxy"]
+    exigir: ["earnings"]
     excluir: []
     palavras_ditas: ["say", "mention", "said"]
 

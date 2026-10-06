@@ -70,8 +70,11 @@ def ativos(
 ) -> list[Linha]:
     """Mercados abertos vistos na coleta recente (descarta os que sumiram da busca)."""
     corte = iso(agora - timedelta(hours=visto_desde_h))
-    sql = "SELECT * FROM mercados WHERE fechado = 0 AND ultimo_visto >= ?"
-    args: list = [corte]
+    # Prazo vencido com preço já decidido (≤2% ou ≥98%) = só aguardando resolução: sai das telas.
+    # Prazo vencido com preço em aberto continua (ex.: eleição que foi para o 2º turno).
+    sql = """SELECT * FROM mercados WHERE fechado = 0 AND ultimo_visto >= ?
+             AND (fim IS NULL OR fim > ? OR (prob > 0.02 AND prob < 0.98))"""
+    args: list = [corte, iso(agora)]
     if tema:
         sql += " AND tema = ?"
         args.append(tema)

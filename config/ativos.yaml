@@ -41,10 +41,10 @@ ativos:
   # --- B3 ---
   PETR4.SA: {nome: "Petrobras PN", bolsa: B3, temas: {ira: -1, brasil: 0}}
   PRIO3.SA: {nome: "PRIO", bolsa: B3, temas: {ira: -1}}
-  AZUL4.SA: {nome: "Azul PN", bolsa: B3, temas: {ira: 1}}
+  # AZUL4 saiu do pregão com a reestruturação da Azul (2025); ação diluída, fora do monitoramento.
   VALE3.SA: {nome: "Vale", bolsa: B3, temas: {taiwan: -1}}
   BBAS3.SA: {nome: "Banco do Brasil", bolsa: B3, temas: {brasil: 0}}
-  EMBR3.SA: {nome: "Embraer", bolsa: B3, temas: {tarifas: -1}}
+  EMBJ3.SA: {nome: "Embraer", bolsa: B3, temas: {tarifas: -1}}
   SUZB3.SA: {nome: "Suzano", bolsa: B3, temas: {tarifas: -1}}
   WEGE3.SA: {nome: "WEG", bolsa: B3, temas: {tarifas: -1}}
   ^BVSP: {nome: "Ibovespa", bolsa: B3, temas: {fed: 1, brasil: 0, tarifas: -1}}
