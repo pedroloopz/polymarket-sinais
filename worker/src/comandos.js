@@ -19,7 +19,8 @@ export const AJUDA = [
   "🌙 /silencio — horário de silêncio",
   "🩺 /status — saúde das fontes",
   "",
-  "Em breve (Fase 3): /baleias e /agenda.",
+  "🐋 /baleias — carteiras vencedoras",
+  "📅 /agenda — eventos dos próximos 30 dias",
 ].join("\n");
 
 const BOTOES_TEMAS = [
@@ -58,12 +59,9 @@ const ALIASES = {
   ajuda: "ajuda", help: "ajuda", start: "start", btc: "cripto",
 };
 
-const VISOES = new Set(["resumo", "prazos", "novos", "placar", "sinal", "balancos", "ranking"]);
+const VISOES = new Set(["resumo", "prazos", "novos", "placar", "sinal", "balancos", "ranking", "agenda", "baleias"]);
 const CAMPO_VISAO = { sinal: "sinais" };
-const FUTURO = {
-  baleias: "🐋 Carteiras vencedoras chegam na Fase 3.",
-  agenda: "📅 A agenda de eventos chega na Fase 3.",
-};
+const FUTURO = {};
 
 export function normalizarComando(texto) {
   const m = /^\/([^\s@]+)(?:@\S+)?\s*(.*)$/s.exec((texto || "").trim());
@@ -108,6 +106,7 @@ function textoStatus(painel, agora) {
   for (const [fonte, estado] of Object.entries(painel.fontes || {})) {
     partes.push(`${estado === "ok" ? "🟢" : "🟠"} ${fonte}: ${estado}`);
   }
+  if (painel.tempo_real) partes.push(painel.tempo_real);
   partes.push("🤖 Worker: ✅ respondendo");
   return partes.join("\n");
 }

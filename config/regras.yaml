@@ -44,7 +44,8 @@ calibracao:                       # módulo 2 (workflow mensal "Calibração")
   defasagem_max_min: 60           # testa de −60 a +60 min
   mercados_por_tema: 3            # os de maior volume (acima do volume mínimo de sinal)
   amostras_min: 150               # barras alinhadas mínimas para confiar no par
-  t_min: 2.0                      # |t| do beta abaixo disso = sentido não confirmado
+  t_min: 3.3                      # |t| mínimo do beta. 3,3 = Bonferroni p/ 25 defasagens testadas
+                                  # (com 2,0, 77 de 100 pares "passavam" na 1ª calibração real: falso positivo)
 
 sinais:
   zscore_min: 2.0                 # (Telegram)
@@ -73,3 +74,29 @@ risco:
 protecao:
   perdas_seguidas_para_pausar: 2
   pausa_horas: 24
+
+# ---- Fase 3 ----
+tempo_real:                       # Worker do Cloudflare a cada 5 min
+  mercados: 25                    # mercados prioritários vigiados (os de maior volume)
+  janelas_min: [15, 30, 60]       # compara a leitura atual com 15, 30 e 60 min atrás
+
+manipulacao:                      # módulo 5
+  concentracao_top5: 0.6
+  divergencia_pp: 5
+  movimento_pp: 3
+  volume_baixo_usd: 50000
+  liquidez_rasa_usd: 20000
+  reversao_pp: 5
+  pico_noticias_min: 1.5          # GDELT: volume recente ÷ mediana da semana
+
+kalshi:
+  paginas: 15                     # páginas de 200 eventos abertos
+  similaridade_min: 0.45          # casamento conservador de perguntas
+
+baleias:                          # módulo 6
+  minimo_resolvidos: 20
+  candidatas: 60
+  mercados_amostra: 30
+  top: 20
+  alerta_minimo_usd: 5000
+  alerta_aumento_pct: 20

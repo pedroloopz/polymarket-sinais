@@ -99,6 +99,56 @@ CREATE TABLE IF NOT EXISTS hist_mercado (
     PRIMARY KEY (mercado_id, t)
 );
 
+-- Fase 3 ---------------------------------------------------------------
+-- Par Polymarket × Kalshi (mesma pergunta), para a divergência entre plataformas.
+CREATE TABLE IF NOT EXISTS kalshi_pares (
+    mercado_id TEXT PRIMARY KEY,
+    ticker TEXT NOT NULL,
+    titulo TEXT,
+    similaridade REAL,
+    prob REAL,
+    ts TEXT NOT NULL
+);
+
+-- Módulo 5: nota de risco de manipulação por mercado.
+CREATE TABLE IF NOT EXISTS manipulacao (
+    mercado_id TEXT PRIMARY KEY,
+    ts TEXT NOT NULL,
+    nota TEXT NOT NULL,           -- 🟢 🟡 🔴
+    detalhes TEXT
+);
+
+-- Módulo 6: carteiras vencedoras e o último retrato das posições delas.
+CREATE TABLE IF NOT EXISTS carteiras (
+    endereco TEXT PRIMARY KEY,
+    apelido TEXT,
+    resolvidos INTEGER,
+    acerto REAL,
+    pnl REAL,
+    ranking INTEGER,
+    ts TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS posicoes_carteiras (
+    endereco TEXT NOT NULL,
+    condicao TEXT NOT NULL,
+    lado TEXT,
+    tamanho REAL,
+    ts TEXT NOT NULL,
+    PRIMARY KEY (endereco, condicao, lado)
+);
+
+-- Módulo 9: agenda de eventos.
+CREATE TABLE IF NOT EXISTS agenda (
+    id TEXT PRIMARY KEY,          -- tipo:data
+    tipo TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    data TEXT NOT NULL,           -- AAAA-MM-DD
+    status TEXT NOT NULL,         -- confirmada | estimada
+    fonte TEXT,
+    temas TEXT,
+    avisado INTEGER DEFAULT 0
+);
+
 -- Mensagens 🔔 seguradas durante o horário de silêncio.
 CREATE TABLE IF NOT EXISTS fila (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,6 +178,8 @@ CREATE TABLE IF NOT EXISTS execucoes (
 
 # Colunas acrescentadas depois da Fase 1: o banco que já existe no branch `dados` é migrado sozinho.
 COLUNAS_NOVAS = {
+    "mercados": {"condicao": "TEXT"},
+    "calibracao": {"estavel": "INTEGER"},
     "sinais": {
         "confianca": "TEXT",
         "status": "TEXT DEFAULT 'aberto'",

@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from bot import formato as f
-from bot.analise import calibracao, risco, semaforo
+from bot.analise import calibracao, manipulacao, risco, semaforo
 from bot.config import Config
 from bot.db import de_iso, iso, ler_texto
 from bot.diario.registro import Sinal
@@ -139,7 +139,13 @@ class Candidato:
         return 1 if self.dp > 0 else -1
 
 
-def detectar(con: sqlite3.Connection, cfg: Config, agora: datetime, obter_hist: ObterHist) -> list[Candidato]:
+def detectar(
+    con: sqlite3.Connection,
+    cfg: Config,
+    agora: datetime,
+    obter_hist: ObterHist,
+    excluir: set[str] | None = None,
+) -> list[Candidato]:
     rs = cfg.regras.get("sinais", {})
     n_pers = max(1, int(rs.get("persistencia_leituras", 2)))
     vol_min = cfg.regras.get("filtros", {}).get("volume_min_sinal_usd", 0)
@@ -151,7 +157,7 @@ def detectar(con: sqlite3.Connection, cfg: Config, agora: datetime, obter_hist: 
         (vol_min, iso(agora - timedelta(hours=2))),
     ).fetchall()
     for m in mercados:
-        if m["tema"] not in temas:
+        if m["tema"] not in temas or m["id"] in (excluir or set()):
             continue
         lt = leituras(con, m["id"], n_pers + 1)
         if len(lt) < n_pers + 1:
@@ -227,11 +233,11 @@ def montar(
     pausado: bool = False,
 ) -> SinalMontado | None:
     rs, rr = cfg.regras.get("sinais", {}), cfg.regras.get("risco", {})
-    t_min = cfg.regras.get("calibracao", {}).get("t_min", 2.0)
+    t_min = cfg.regras.get("calibracao", {}).get("t_min", 3.3)
     tema = cfg.temas[c.tema]
 
     # 1) ativo: calibração confirmada > hipótese
-    pares = [p for p in calibracao.carregar(con, c.mercado["id"]) if abs(p["t_beta"]) >= t_min]
+    pares = calibracao.confirmados(con, c.mercado["id"], t_min)
     calibrado = bool(pares)
     if calibrado:
         principal, alternativa = pares[0], (pares[1] if len(pares) > 1 else None)
@@ -321,13 +327,16 @@ def montar(
         motivos.append(f"ganho/risco {f.numero(plano.ganho_risco, 1)} abaixo do mínimo")
     if pausado:
         motivos.append("trava ativa após perdas seguidas")
+    nota = manipulacao.ler(con, c.mercado["id"])
+    if nota and nota.nota == "🔴":
+        motivos.append("risco de manipulação 🔴")
     acionavel = not motivos
     urgencia = ("🚨" if cor == "🟢" else "🔔") if acionavel else "📋"
 
     sinal = Sinal(
         ts=agora, tema=c.tema, ativo=ativo, sentido=sentido, entrada=entrada, mercado_id=c.mercado["id"],
         stop=plano.stop if plano else None, alvo=plano.alvo if plano else None, semaforo=cor,
-        manipulacao=None, urgencia=urgencia, acionavel=acionavel, latencia_s=latencia,
+        manipulacao=nota.nota if nota else None, urgencia=urgencia, acionavel=acionavel, latencia_s=latencia,
         detalhes={"motivos": motivos, "notas": c.notas, "alternativa": alt, "semaforo": detalhe_sem,
                   "pergunta": c.mercado["pergunta"]},
         confianca=confianca, base_ts=c.base_ts, p_base=c.p_base, p_sinal=c.p_agora, z=c.z,
@@ -335,7 +344,7 @@ def montar(
         stop_tempo=plano.stop_tempo if plano else None, esperado=esperado, realizado=realizado,
         defasagem_min=defasagem, beta_10pp=beta, quantidade=plano.quantidade if plano else None,
     )  # fmt: skip
-    texto = mensagem(cfg, c, sinal, plano, moeda, alt, detalhe_sem, motivos)
+    texto = mensagem(cfg, c, sinal, plano, moeda, alt, detalhe_sem, motivos, nota.texto if nota else "—")
     return SinalMontado(sinal, texto, acionavel)
 
 
@@ -355,6 +364,7 @@ def mensagem(
     alt: tuple[str, int] | None,
     detalhe_sem: str,
     motivos: list[str],
+    manip: str = "—",
 ) -> str:
     tema = cfg.temas[c.tema]
     nome = s.ativo.removesuffix(".SA")
@@ -395,7 +405,7 @@ def mensagem(
     elif not cfg.regras.get("risco", {}).get("capital"):
         tamanho += " (defina com /capital)"
     linhas.append(f"{tamanho} | Latência do alerta: {f.numero((s.latencia_s or 0) / 60, 0)} min")
-    linhas.append(f"Confiança: {s.confianca} | 🕵️ Manipulação: — (Fase 3)")
+    linhas.append(f"Confiança: {s.confianca} | 🕵️ Manipulação: {manip}")
     for nota in c.notas:
         linhas.append(f"ℹ️ {nota}")
     if motivos:

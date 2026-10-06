@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from bot import db
+from bot import db, extras
 from bot.analise import acompanhamento, balancos, calibracao, novos, prazos, protecao, sinais
 from bot.coleta import precos
 from bot.coleta.coletor import coletar
@@ -21,7 +21,7 @@ from bot.diario.registro import registrar
 from bot.http import Http
 from bot.kv import KV
 from bot.logs import aviso, info, log
-from bot.saida import painel, resumo
+from bot.saida import painel, resumo, vigia
 from bot.saida.telegram import Telegram, despachar, esvaziar_fila, informativos_pendentes
 
 _log = log("tarefas")
@@ -33,6 +33,10 @@ BOTOES_RESUMO = [
     [
         {"text": "🆕 Novos", "callback_data": "ver:novos"},
         {"text": "📒 Placar", "callback_data": "ver:placar"},
+    ],
+    [
+        {"text": "📅 Agenda", "callback_data": "ver:agenda"},
+        {"text": "🐋 Baleias", "callback_data": "ver:baleias"},
     ],
 ]
 
@@ -85,6 +89,7 @@ def tarefa_coletar(ctx: Contexto) -> dict[str, str]:
     fontes: dict[str, str] = {}
     try:
         esvaziar_fila(con, ctx.tg, cfg.regras, agora)
+        rt, worker_vivo = extras.ingerir_worker(ctx)
         res = coletar(con, cfg, Gamma(ctx.http), Clob(ctx.http), precos.ultimas_cotacoes, agora)
         fontes = res.fontes
 
@@ -97,8 +102,14 @@ def tarefa_coletar(ctx: Contexto) -> dict[str, str]:
 
         d = cfg.regras.get("diario", {})
         avaliacao.avaliar_pendentes(con, agora, d.get("custo_estimado_pct", 0.2), d.get("horizontes"))
-        _rodar_sinais(ctx)
-        _publicar_painel(ctx, fontes, _textos_comuns(ctx))
+        fontes.update(extras.plataformas_e_manipulacao(ctx))
+        extras.vigiar_baleias(ctx)
+        vigiados = set()
+        if worker_vivo:
+            vigiados = {m["id"] for m in (ctx.kv.ler("vigia", {}) or {}).get("mercados", [])}
+        _rodar_sinais(ctx, worker_vivo=worker_vivo, excluir=vigiados)
+        extras.publicar_vigia(ctx)
+        _publicar_painel(ctx, fontes, {**_textos_comuns(ctx), "tempo_real": vigia.texto_status(rt, agora)})
     except Exception:
         status = "erro"
         raise
@@ -107,19 +118,21 @@ def tarefa_coletar(ctx: Contexto) -> dict[str, str]:
     return fontes
 
 
-def _rodar_sinais(ctx: Contexto) -> None:
+def _rodar_sinais(ctx: Contexto, worker_vivo: bool = False, excluir: set[str] | None = None) -> None:
     """Módulos 3, 4, 11, 11b e 12: acompanha os abertos, checa a trava e procura sinais novos.
-    Qualquer erro aqui é registrado sem derrubar a coleta."""
+    Com o Worker vivo, ele acompanha os abertos e vigia os mercados prioritários a cada 5 min;
+    aqui fica só o resto. Qualquer erro é registrado sem derrubar a coleta."""
     cfg, con, agora = ctx.cfg, ctx.con, ctx.agora
     clob = Clob(ctx.http)
     try:
-        for e in acompanhamento.acompanhar(con, cfg.regras, agora):
-            despachar(con, ctx.tg, e.texto, e.urgencia, cfg.regras, agora)
+        if not worker_vivo:
+            for e in acompanhamento.acompanhar(con, cfg.regras, agora):
+                despachar(con, ctx.tg, e.texto, e.urgencia, cfg.regras, agora)
         aviso_trava = protecao.verificar(con, cfg.regras, agora)
         if aviso_trava:
             despachar(con, ctx.tg, aviso_trava, "🔔", cfg.regras, agora)
         pausado = protecao.pausado_ate(con, agora) is not None
-        candidatos = sinais.detectar(con, cfg, agora, clob.historico_periodo)
+        candidatos = sinais.detectar(con, cfg, agora, clob.historico_periodo, excluir=excluir)
         for c in candidatos:
             montado = sinais.montar(
                 con, cfg, c, agora, obter_hist=clob.historico_periodo,
@@ -144,9 +157,10 @@ def tarefa_calibrar(ctx: Contexto) -> str:
     try:
         clob = Clob(ctx.http)
         pares = calibracao.calibrar(con, cfg, agora, clob.historico_periodo, precos.barras_intradiarias)
-        texto = calibracao.texto_ranking(con, cfg, cfg.regras.get("calibracao", {}).get("t_min", 2.0))
+        t_min = cfg.regras.get("calibracao", {}).get("t_min", 3.3)
+        texto = calibracao.texto_ranking(con, cfg, t_min)
         db.guardar_texto(con, "ranking", texto)
-        confirmados = sum(1 for p in pares if p.confirmado)
+        confirmados = sum(1 for p in pares if p.confirmado(t_min))
         cab = f"📊 Calibração concluída: {len(pares)} pares medidos, {confirmados} com efeito claro.\n\n"
         despachar(con, ctx.tg, cab + texto, "🔔", cfg.regras, agora)
         _publicar_painel(ctx, {}, {**_textos_comuns(ctx), "ranking": texto})
@@ -210,6 +224,13 @@ def tarefa_resumo(ctx: Contexto) -> str:
 
     lista, estado = _levantar_balancos(ctx)
     fontes = {**fontes, "Balanços (Yahoo)": estado}
+    try:
+        hoje, fontes_agenda = extras.atualizar_agenda(ctx, lista)
+    except Exception as erro:
+        aviso(_log, "agenda falhou", erro=str(erro))
+        hoje, fontes_agenda = [], {"Agenda": "indisponível"}
+    fontes.update(fontes_agenda)
+    fontes["Carteiras (Data API)"] = extras.ranquear_baleias(ctx)
     texto_bal = balancos.texto_completo(lista, agora) if lista else "🪙 Balanços indisponíveis hoje."
     db.guardar_texto(con, "balancos", texto_bal)
 
@@ -230,11 +251,13 @@ def tarefa_resumo(ctx: Contexto) -> str:
         n_novos=n_novos,
         placar=placar.linha_resumo(p, d.get("minimo_sinais_avaliados", 30), d.get("minimo_semanas", 8)),
         sinais_acionaveis=_acionaveis_24h(ctx),
+        hoje=hoje,
         fontes=fontes,
         informativos=informativos_pendentes(con),
     )
     despachar(con, ctx.tg, texto, "🔔", cfg.regras, agora, botoes=BOTOES_RESUMO)
     db.guardar_texto(con, "resumo", texto)
     _publicar_painel(ctx, fontes, {**_textos_comuns(ctx), "resumo": texto, "balancos": texto_bal})
+    extras.publicar_vigia(ctx)
     db.registrar_execucao(con, "resumo", agora, "ok", fontes)
     return texto

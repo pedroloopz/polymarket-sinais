@@ -1,6 +1,7 @@
 // Cloudflare Worker: webhook do Telegram (respostas na hora).
-// Fase 3 adiciona aqui o Cron Trigger de quase tempo real.
+// Fase 3: Cron Trigger a cada 5 min (tempo_real.js).
 import { autorizado, textoNaoAutorizado, tratarBotao, tratarMensagem } from "./comandos.js";
+import { rodar } from "./tempo_real.js";
 
 const API = "https://api.telegram.org";
 
@@ -48,6 +49,12 @@ async function tratarUpdate(update, env) {
 }
 
 export default {
+  async scheduled(evento, env, ctx) {
+    ctx.waitUntil(
+      rodar(env).catch((erro) => console.log(JSON.stringify({ evento: "tempo_real_erro", erro: String(erro) }))),
+    );
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/") {

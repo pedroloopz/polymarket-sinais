@@ -52,6 +52,11 @@ def montar(
         "sinais": textos.get("sinais") or ler_texto(con, "sinais", "🎯 Nenhum sinal ainda."),
         "ranking": textos.get("ranking") or ler_texto(con, "ranking", "📊 Calibração ainda não rodou."),
         "placar_semanal": ler_texto(con, "placar_semanal", ""),
+        "agenda": ler_texto(con, "agenda", "📅 Agenda ainda não levantada (sai no resumo diário)."),
+        "baleias": ler_texto(
+            con, "baleias", "🐋 Ranking de carteiras ainda não calculado (sai no resumo diário)."
+        ),
+        "tempo_real": textos.get("tempo_real", ""),
         # Valores em vigor (YAML + Telegram), para o menu /config mostrar o atual.
         "regras": {
             "volume_min_sinal_usd": cfg.regras.get("filtros", {}).get("volume_min_sinal_usd"),

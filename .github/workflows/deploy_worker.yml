@@ -132,6 +132,8 @@ jobs:
             {"command":"ranking","description":"Calibração (defasagem × efeito)"},
             {"command":"placar","description":"Diário simulado"},
             {"command":"config","description":"Limiares, temas e silêncio"},
+            {"command":"agenda","description":"Eventos dos próximos 30 dias"},
+            {"command":"baleias","description":"Carteiras vencedoras"},
             {"command":"capital","description":"Definir capital"},
             {"command":"silencio","description":"Horário de silêncio"},
             {"command":"status","description":"Saúde das fontes"},

@@ -6,6 +6,9 @@ Método (barras de 5 min, últimos 30 dias, só horário de pregão do ativo):
   k > 0 = a Polymarket anda antes do ativo.
 - Beta: regressão de r_{t+k} na variação da probabilidade em pontos (Δp),
   expresso em "% do ativo por +10 p.p.".
+- Confirmação (contra falso positivo): como testamos 25 defasagens e ficamos com a melhor, o t do
+  beta precisa passar por Bonferroni (|t| ≥ 3,3 ≈ p < 0,05/25) **e** o beta precisa ter o mesmo
+  sinal na 1ª e na 2ª metade do período (estabilidade fora da amostra).
 - A primeira barra de cada pregão (gap de abertura) fica de fora: o movimento fora do pregão
   é "gap esperado na abertura", não reação explorável.
 """
@@ -39,11 +42,11 @@ class Par:
     beta_10pp: float
     t_beta: float
     n: int
+    estavel: bool = True
     volume: float = 0.0
 
-    @property
-    def confirmado(self) -> bool:
-        return abs(self.t_beta) >= 2.0
+    def confirmado(self, t_min: float = 3.3) -> bool:
+        return abs(self.t_beta) >= t_min and self.estavel
 
     @property
     def score(self) -> float:
@@ -79,8 +82,8 @@ def calibrar_par(
     intervalo_min: int = 5,
     defasagem_max_min: int = 60,
     amostras_min: int = 150,
-) -> tuple[float, float, float, float, int] | None:
-    """Retorna (defasagem_min, correlação, beta_10pp, t_beta, n) ou None se faltar dado."""
+) -> tuple[float, float, float, float, int, bool] | None:
+    """Retorna (defasagem_min, correlação, beta_10pp, t_beta, n, estável) ou None se faltar dado."""
     df = alinhar(prob, preco, intervalo_min)
     k_max = defasagem_max_min // intervalo_min
     melhor: tuple[int, float, int] | None = None
@@ -106,8 +109,15 @@ def calibrar_par(
     resid = y - (y.mean() + beta * (x - x.mean()))
     se = math.sqrt(float((resid**2).sum()) / (n - 2) / sxx) if n > 2 else float("inf")
     t = beta / se if se > 0 else 0.0
+    # estabilidade: mesmo sinal do beta na 1ª e na 2ª metade
+    metades = []
+    for parte in (reg.iloc[: n // 2], reg.iloc[n // 2 :]):
+        px, py = parte["x"].to_numpy(), parte["y"].to_numpy()
+        sx = float(((px - px.mean()) ** 2).sum())
+        metades.append(float(((px - px.mean()) * (py - py.mean())).sum() / sx) if sx else 0.0)
+    estavel = metades[0] * metades[1] > 0
     # beta em retorno log por 1,0 de probabilidade → % por 0,10 (10 p.p.)
-    return k * intervalo_min, c, beta * 0.10 * 100, t, n
+    return k * intervalo_min, c, beta * 0.10 * 100, t, n, estavel
 
 
 def pares_candidatos(con: sqlite3.Connection, cfg: Config) -> list[tuple[sqlite3.Row, str]]:
@@ -181,7 +191,7 @@ def calibrar(
     con.execute("DELETE FROM calibracao")
     con.executemany(
         """INSERT INTO calibracao (mercado_id, ativo, tema, ts, defasagem_min, correlacao, beta_10pp,
-           t_beta, n, volume, score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           t_beta, n, volume, score, estavel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [
             (
                 p.mercado_id,
@@ -195,6 +205,7 @@ def calibrar(
                 p.n,
                 p.volume,
                 p.score,
+                int(p.estavel),
             )
             for p in resultado
         ],
@@ -204,6 +215,11 @@ def calibrar(
     return resultado
 
 
+def confirmados(con: sqlite3.Connection, mercado_id: str, t_min: float = 3.3) -> list[sqlite3.Row]:
+    """Pares do mercado com efeito claro (Bonferroni + estável nas duas metades), do melhor ao pior."""
+    return [p for p in carregar(con, mercado_id) if abs(p["t_beta"]) >= t_min and p["estavel"] == 1]
+
+
 def carregar(con: sqlite3.Connection, mercado_id: str) -> list[sqlite3.Row]:
     """Pares calibrados de um mercado, do melhor para o pior."""
     return con.execute(
@@ -211,7 +227,7 @@ def carregar(con: sqlite3.Connection, mercado_id: str) -> list[sqlite3.Row]:
     ).fetchall()
 
 
-def texto_ranking(con: sqlite3.Connection, cfg: Config, t_min: float = 2.0) -> str:
+def texto_ranking(con: sqlite3.Connection, cfg: Config, t_min: float = 3.3) -> str:
     linhas = con.execute(
         """SELECT c.*, m.pergunta FROM calibracao c JOIN mercados m ON m.id = c.mercado_id
            ORDER BY c.tema, c.score DESC"""
@@ -229,11 +245,13 @@ def texto_ranking(con: sqlite3.Connection, cfg: Config, t_min: float = 2.0) -> s
         t = cfg.temas.get(tema, {})
         partes.append(f"\n{t.get('emoji', '')} <b>{f.esc(t.get('nome', tema))}</b>")
         for r in rs[:3]:
-            ok = "✅" if abs(r["t_beta"]) >= t_min else "❔"
+            ok = "✅" if abs(r["t_beta"]) >= t_min and r["estavel"] == 1 else "❔"
             partes.append(
                 f"{ok} {r['ativo'].removesuffix('.SA')}: {f.numero(r['defasagem_min'], 0, sinal=True)} min | "
                 f"{f.numero(r['beta_10pp'], 2, sinal=True)}% | {f.numero(r['correlacao'], 2, sinal=True)}"
             )
         partes.append(f"   ↳ {f.esc(f.encurtar(rs[0]['pergunta'], 60))}")
-    partes.append("\n✅ efeito estatisticamente claro (|t| ≥ 2) · ❔ ainda incerto")
+    partes.append(
+        f"\n✅ efeito claro (|t| ≥ {f.numero(t_min, 1)} e estável nas duas metades do mês) · ❔ incerto"
+    )
     return "\n".join(partes)

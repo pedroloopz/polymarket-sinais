@@ -50,22 +50,23 @@ def _gravar_mercado(
         prob=prob,
         var=m.var_24h,
         pd=int(palavras_ditas),
+        condicao=m.condicao or None,
         fechado=int(m.fechado),
     )
     if existe:
         con.execute(
             """UPDATE mercados SET evento_titulo=:evento_titulo, pergunta=:pergunta, item=:item, fim=:fim,
                ultimo_visto=:ts, volume=:volume, liquidez=:liquidez, prob=:prob, var_24h_gamma=:var,
-               palavras_ditas=:pd, fechado=:fechado WHERE id=:id""",
+               palavras_ditas=:pd, fechado=:fechado, condicao=COALESCE(:condicao, condicao) WHERE id=:id""",
             valores,
         )
         return False
     con.execute(
         """INSERT INTO mercados (id, tema, evento_id, evento_titulo, pergunta, item, slug, evento_slug,
            token_sim, fim, criado_em, primeiro_visto, ultimo_visto, volume, liquidez, prob, var_24h_gamma,
-           palavras_ditas, fechado)
+           palavras_ditas, fechado, condicao)
            VALUES (:id, :tema, :evento_id, :evento_titulo, :pergunta, :item, :slug, :evento_slug, :token_sim,
-           :fim, :criado_em, :ts, :ts, :volume, :liquidez, :prob, :var, :pd, :fechado)""",
+           :fim, :criado_em, :ts, :ts, :volume, :liquidez, :prob, :var, :pd, :fechado, :condicao)""",
         valores,
     )
     return True

@@ -1,0 +1,33 @@
+# Eventos sem fonte oficial legível por máquina (ver src/bot/coleta/agenda.py).
+# FOMC, payroll e CPI são buscados sozinhos nas páginas oficiais; NÃO precisam estar aqui.
+# Para editar pelo celular: GitHub → este arquivo → ✏️ → Commit changes.
+# status: confirmada (data oficial publicada) | estimada
+# temas: chaves de temas.yaml cujos mercados aparecem no alerta da véspera.
+
+eventos:
+  - tipo: copom
+    titulo: "Decisão do Copom"
+    data: 2026-11-04
+    status: confirmada
+    fonte: "BCB — calendário de reuniões do Copom 2026 (publicado em jun/2025)"
+    temas: [brasil, fed]
+  - tipo: copom
+    titulo: "Decisão do Copom"
+    data: 2026-12-09
+    status: confirmada
+    fonte: "BCB — calendário de reuniões do Copom 2026 (publicado em jun/2025)"
+    temas: [brasil, fed]
+  - tipo: eleicao
+    titulo: "2º turno da eleição presidencial"
+    data: 2026-10-25
+    status: confirmada
+    fonte: "TSE — calendário eleitoral 2026"
+    temas: [brasil]
+  # OPEP+: as reuniões mudam com frequência e não há calendário oficial estável. Inclua aqui
+  # quando a OPEP anunciar (opec.org), por exemplo:
+  # - tipo: opep
+  #   titulo: "Reunião da OPEP+"
+  #   data: 2026-11-30
+  #   status: estimada
+  #   fonte: "opec.org"
+  #   temas: [ira, mar_vermelho]

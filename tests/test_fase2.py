@@ -80,7 +80,7 @@ def _cenario_movimento(con, reverter=False):
 def _calibrar_xle(con, defasagem=120, beta=-1.5, t=-5.0):
     con.execute(
         """INSERT INTO calibracao (mercado_id, ativo, tema, ts, defasagem_min, correlacao, beta_10pp, t_beta, n,
-           volume, score) VALUES ('m1', 'XLE', 'ira', ?, ?, -0.3, ?, ?, 900, 5e6, 1.0)""",
+           volume, score, estavel) VALUES ('m1', 'XLE', 'ira', ?, ?, -0.3, ?, ?, 900, 5e6, 1.0, 1)""",
         (iso(AGORA), defasagem, beta, t),
     )
     con.commit()
@@ -116,10 +116,10 @@ def _sintetico(lag_barras=3, beta_frac=-0.15):
 
 def test_calibracao_recupera_defasagem_e_beta():
     p, preco = _sintetico()
-    defasagem, corr, beta, t, n = calibracao.calibrar_par(p, preco)
+    defasagem, corr, beta, t, n, estavel = calibracao.calibrar_par(p, preco)
     assert defasagem == 15  # 3 barras de 5 min: a Polymarket anda antes
     assert beta == pytest.approx(-1.5, abs=0.1)  # % do ativo por +10 p.p.
-    assert corr < 0 and abs(t) > 2 and n > 1000
+    assert corr < 0 and abs(t) > 3.3 and n > 1000 and estavel
 
 
 def test_calibracao_sem_relacao_nao_confirma():
@@ -127,8 +127,8 @@ def test_calibracao_sem_relacao_nao_confirma():
     ruido = pd.Series(
         100 * np.exp(np.cumsum(np.random.default_rng(9).normal(0, 0.001, len(p)))), index=p.index
     )
-    _, _, _, t, _ = calibracao.calibrar_par(p, ruido)
-    assert abs(t) < 3
+    _, _, _, t, _, _ = calibracao.calibrar_par(p, ruido)
+    assert abs(t) < 3.3
 
 
 def test_calibrar_grava_e_ranking(con, cfg):
