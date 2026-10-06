@@ -1,0 +1,110 @@
+{
+ "events": [
+  {
+   "id": "ev1",
+   "title": "US x Iran ceasefire by October 12?",
+   "slug": "us-iran-ceasefire-oct-12",
+   "endDate": "2026-10-12T23:59:00Z",
+   "markets": [
+    {
+     "id": "m1",
+     "question": "US x Iran ceasefire by October 12?",
+     "slug": "us-x-iran-ceasefire-by-october-12?",
+     "endDate": "2026-10-12T23:59:00Z",
+     "createdAt": "2026-09-01T00:00:00Z",
+     "volumeNum": 5200000,
+     "liquidityNum": 260000.0,
+     "outcomes": "[\"Yes\", \"No\"]",
+     "outcomePrices": "[\"0.91\", \"0.09\"]",
+     "clobTokenIds": "[\"tokA\", \"tokA_no\"]",
+     "active": true,
+     "closed": false,
+     "bestBid": 0.9,
+     "bestAsk": 0.92,
+     "oneDayPriceChange": -0.02,
+     "groupItemTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "ev2",
+   "title": "Strait of Hormuz traffic returns to normal by October 31?",
+   "slug": "hormuz-normal-oct-31",
+   "markets": [
+    {
+     "id": "m2",
+     "question": "Strait of Hormuz traffic returns to normal by October 31?",
+     "slug": "strait-of-hormuz-traffic-returns-to-norm",
+     "endDate": "2026-10-31T23:59:00Z",
+     "createdAt": "2026-09-01T00:00:00Z",
+     "volumeNum": 1500000,
+     "liquidityNum": 75000.0,
+     "outcomes": "[\"Yes\", \"No\"]",
+     "outcomePrices": "[\"0.72\", \"0.28\"]",
+     "clobTokenIds": "[\"tokB\", \"tokB_no\"]",
+     "active": true,
+     "closed": false,
+     "bestBid": 0.71,
+     "bestAsk": 0.73,
+     "oneDayPriceChange": 0.01,
+     "groupItemTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "ev3",
+   "title": "Will Taylor Swift tour Iran?",
+   "slug": "x",
+   "markets": [
+    {
+     "id": "m3",
+     "question": "Old closed market about Iran",
+     "slug": "old-closed-market-about-iran",
+     "endDate": "2026-10-07T12:00:00Z",
+     "createdAt": "2026-09-01T00:00:00Z",
+     "volumeNum": 900000,
+     "liquidityNum": 45000.0,
+     "outcomes": "[\"Yes\", \"No\"]",
+     "outcomePrices": "[\"0.5\", \"0.5\"]",
+     "clobTokenIds": "[\"tokC\", \"tokC_no\"]",
+     "active": true,
+     "closed": true,
+     "bestBid": 0.49,
+     "bestAsk": 0.51,
+     "oneDayPriceChange": 0.01,
+     "groupItemTitle": ""
+    }
+   ]
+  },
+  {
+   "id": "ev4",
+   "title": "Bitcoin above 100k?",
+   "slug": "btc",
+   "markets": [
+    {
+     "id": "m4",
+     "question": "Bitcoin above 100k on Oct 31?",
+     "slug": "bitcoin-above-100k-on-oct-31?",
+     "endDate": "2026-10-31T23:59:00Z",
+     "createdAt": "2026-09-01T00:00:00Z",
+     "volumeNum": 3000000,
+     "liquidityNum": 150000.0,
+     "outcomes": "[\"Yes\", \"No\"]",
+     "outcomePrices": "[\"0.4\", \"0.6\"]",
+     "clobTokenIds": "[\"tokD\", \"tokD_no\"]",
+     "active": true,
+     "closed": false,
+     "bestBid": 0.39,
+     "bestAsk": 0.41000000000000003,
+     "oneDayPriceChange": 0.01,
+     "groupItemTitle": ""
+    }
+   ]
+  }
+ ],
+ "tags": [],
+ "profiles": [],
+ "pagination": {
+  "hasMore": false
+ }
+}

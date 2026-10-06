@@ -1,0 +1,49 @@
+name: Resumo diário
+
+on:
+  schedule:
+    # 10:20 UTC = 07:20 em Brasília (o Brasil não tem horário de verão).
+    # O GitHub costuma atrasar alguns minutos: a mensagem chega perto das 07h30.
+    - cron: "20 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dados
+  cancel-in-progress: false
+
+jobs:
+  resumo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BOT_DB: dados/bot.sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+
+      - name: Gerar e enviar o resumo
+        run: python -m bot.main resumo
+
+      - name: Salvar dados
+        if: always()
+        run: bash .github/scripts/salvar_dados.sh
+
+      - name: Backup diário do banco (7 dias)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-sqlite-${{ github.run_id }}
+          path: dados/bot.sqlite
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Avisar falha no Telegram
+        if: failure()
+        run: bash .github/scripts/avisar_falha.sh "resumo diário"

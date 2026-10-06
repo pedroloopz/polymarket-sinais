@@ -1,0 +1,55 @@
+{
+ "events": [
+  {
+   "id": "ev10",
+   "title": "Brazil Presidential Election",
+   "slug": "brazil-presidential-election",
+   "endDate": "2026-10-25T23:59:00Z",
+   "markets": [
+    {
+     "id": "m10",
+     "question": "Will Flávio Bolsonaro win the 2026 Brazilian presidential election?",
+     "slug": "will-flávio-bolsonaro-win-the-2026-brazi",
+     "endDate": "2026-10-25T23:59:00Z",
+     "createdAt": "2026-09-01T00:00:00Z",
+     "volumeNum": 40000000,
+     "liquidityNum": 2000000.0,
+     "outcomes": "[\"Yes\", \"No\"]",
+     "outcomePrices": "[\"0.85\", \"0.15\"]",
+     "clobTokenIds": "[\"tokF\", \"tokF_no\"]",
+     "active": true,
+     "closed": false,
+     "bestBid": 0.84,
+     "bestAsk": 0.86,
+     "oneDayPriceChange": 0.01,
+     "groupItemTitle": "Flávio"
+    },
+    {
+     "id": "m11",
+     "question": "Will Lula win the 2026 Brazilian presidential election?",
+     "slug": "will-lula-win-the-2026-brazilian-preside",
+     "endDate": "2026-10-25T23:59:00Z",
+     "createdAt": "2026-09-01T00:00:00Z",
+     "volumeNum": 35000000,
+     "liquidityNum": 1750000.0,
+     "outcomes": "[\"Yes\", \"No\"]",
+     "outcomePrices": "[\"0.15\", \"0.85\"]",
+     "clobTokenIds": "[\"tokL\", \"tokL_no\"]",
+     "active": true,
+     "closed": false,
+     "bestBid": 0.13999999999999999,
+     "bestAsk": 0.16,
+     "oneDayPriceChange": 0.01,
+     "groupItemTitle": "Lula"
+    }
+   ]
+  },
+  {
+   "id": "ev11",
+   "title": "Brazil runoff turnout",
+   "slug": "turnout"
+  }
+ ],
+ "tags": [],
+ "profiles": []
+}

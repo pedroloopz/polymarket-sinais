@@ -1,0 +1,151 @@
+name: Deploy do Worker
+
+# Publica o Cloudflare Worker (webhook do Telegram) a cada push na main que mexa no
+# Worker, ou manualmente pelo botão "Run workflow" (celular: app do GitHub → Actions).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "worker/**"
+      - ".github/workflows/deploy_worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+env:
+  KV_TITULO: polymarket-sinais-estado
+  WORKER_NOME: polymarket-sinais
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir os Secrets
+        run: |
+          faltando=""
+          for s in CF_TOKEN CF_CONTA TELEGRAM_BOT_TOKEN; do
+            [ -z "${!s}" ] && faltando="$faltando $s"
+          done
+          if [ -n "$faltando" ]; then
+            echo "::error::Faltam Secrets:$faltando (CF_TOKEN=CLOUDFLARE_API_TOKEN, CF_CONTA=CLOUDFLARE_ACCOUNT_ID). Veja o README."
+            exit 1
+          fi
+          [ -z "$TELEGRAM_CHAT_ID" ] && echo "::warning::TELEGRAM_CHAT_ID vazio: mande /start ao bot para descobrir o seu."
+          true
+
+      - name: Criar/achar o namespace KV
+        id: kv
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CF_CONTA/storage/kv/namespaces"
+          resp=$(curl -sf -H "Authorization: Bearer $CF_TOKEN" "$api?per_page=100") || {
+            echo "::error::Token do Cloudflare sem acesso ao KV. Use o modelo 'Edit Cloudflare Workers'."; exit 1; }
+          id=$(echo "$resp" | jq -r --arg t "$KV_TITULO" '.result[] | select(.title==$t) | .id' | head -1)
+          if [ -z "$id" ]; then
+            id=$(curl -sf -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
+              "$api" -d "{\"title\":\"$KV_TITULO\"}" | jq -r '.result.id')
+            echo "Namespace criado."
+          fi
+          [ -z "$id" ] || [ "$id" = "null" ] && { echo "::error::Não consegui criar o namespace KV."; exit 1; }
+          sed -i "s/__KV_ID__/$id/" worker/wrangler.toml
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Gerar o segredo do webhook
+        id: segredo
+        run: |
+          # Derivado do token: muda sozinho quando você revoga/troca o token no @BotFather.
+          s=$(printf '%s' "webhook:$TELEGRAM_BOT_TOKEN" | sha256sum | cut -c1-48)
+          echo "::add-mask::$s"
+          echo "valor=$s" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar no Cloudflare
+        id: wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          wranglerVersion: "4.147.0"
+          secrets: |
+            TELEGRAM_BOT_TOKEN
+            TELEGRAM_CHAT_ID
+            WEBHOOK_SECRET
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # Sem chat ID ainda: "0" não autoriza ninguém, e o /start responde com o seu ID.
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '0' }}
+          WEBHOOK_SECRET: ${{ steps.segredo.outputs.valor }}
+
+      - name: Descobrir a URL do Worker
+        id: url
+        env:
+          URL_WRANGLER: ${{ steps.wrangler.outputs.deployment-url }}
+        run: |
+          url="$URL_WRANGLER"
+          if [ -z "$url" ]; then
+            sub=$(curl -sf -H "Authorization: Bearer $CF_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CF_CONTA/workers/subdomain" | jq -r '.result.subdomain // empty')
+            [ -z "$sub" ] && { echo "::error::Conta sem subdomínio workers.dev. Abra Workers & Pages no painel do Cloudflare uma vez para criá-lo."; exit 1; }
+            url="https://$WORKER_NOME.$sub.workers.dev"
+          fi
+          echo "url=${url%/}" >> "$GITHUB_OUTPUT"
+          echo "Worker: ${url%/}"
+
+      - name: Ligar o webhook do Telegram
+        env:
+          URL: ${{ steps.url.outputs.url }}
+          SEGREDO: ${{ steps.segredo.outputs.valor }}
+        run: |
+          r=$(curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+            --data-urlencode "url=$URL/telegram" \
+            -d "secret_token=$SEGREDO" \
+            --data-urlencode 'allowed_updates=["message","callback_query"]')
+          echo "$r" | jq -e '.ok' > /dev/null || { echo "::error::setWebhook falhou: $(echo "$r" | jq -r '.description')"; exit 1; }
+          echo "Webhook ligado em $URL/telegram"
+
+      - name: Cadastrar o menu de comandos
+        run: |
+          cat > /tmp/comandos.json <<'EOF'
+          {"commands":[
+            {"command":"resumo","description":"Resumo do dia"},
+            {"command":"ira","description":"Irã / Hormuz"},
+            {"command":"brasil","description":"Eleição 2026"},
+            {"command":"fed","description":"Fed / juros"},
+            {"command":"taiwan","description":"China–Taiwan"},
+            {"command":"cripto","description":"Bitcoin (termômetro)"},
+            {"command":"balancos","description":"Balanços de cripto"},
+            {"command":"prazos","description":"Mercados vencendo"},
+            {"command":"novos","description":"Mercados novos"},
+            {"command":"sinal","description":"Últimos sinais"},
+            {"command":"placar","description":"Diário simulado"},
+            {"command":"capital","description":"Definir capital"},
+            {"command":"silencio","description":"Horário de silêncio"},
+            {"command":"status","description":"Saúde das fontes"},
+            {"command":"ajuda","description":"Todos os comandos"}
+          ]}
+          EOF
+          curl -s -H "Content-Type: application/json" -d @/tmp/comandos.json \
+            "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setMyCommands" | jq -e '.ok' > /dev/null
+
+      - name: Avisar no Telegram
+        if: success() && env.TELEGRAM_CHAT_ID != ''
+        run: |
+          curl -s -o /dev/null "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -d chat_id="$TELEGRAM_CHAT_ID" \
+            --data-urlencode text="✅ Worker publicado. Mande /ajuda para ver os comandos."
+
+      - name: Avisar falha no Telegram
+        if: failure()
+        run: bash .github/scripts/avisar_falha.sh "deploy do Worker"

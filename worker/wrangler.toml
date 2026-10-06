@@ -1,0 +1,13 @@
+name = "polymarket-sinais"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# O id é preenchido pelo workflow "Deploy do Worker" (ele cria o namespace se não existir).
+# Título do namespace: polymarket-sinais-estado (o Python procura pelo mesmo título).
+[[kv_namespaces]]
+binding = "ESTADO"
+id = "__KV_ID__"
+
+# Segredos (cadastrados pelo workflow a partir dos GitHub Secrets):
+# TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WEBHOOK_SECRET
