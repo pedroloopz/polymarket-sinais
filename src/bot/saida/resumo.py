@@ -100,7 +100,8 @@ def texto_tema(con: sqlite3.Connection, cfg: Config, chave: str, agora: datetime
         partes.append(f"\n• {link}{aviso}\n  {prazo} | vol. {vol}")
         for m in grupo[:4]:
             nome = f.esc(f.encurtar(m.item, 30)) + ": " if len(grupo) > 1 and m.item else ""
-            partes.append(f"  {nome}{f.prob(m.prob)} ({f.pp(m.var_24h)} em 24 h)")
+            var = f" ({f.pp(m.var_24h)} em 24 h)" if m.var_24h is not None else ""
+            partes.append(f"  {nome}{f.prob(m.prob)}{var}")
     ligados = cfg.ativos_do_tema(chave)
     if ligados:
         seta = {1: "🔺", -1: "🔻", 0: "❔"}

@@ -105,6 +105,8 @@ def combina_tema(mercado: Mercado, tema: dict) -> bool:
     incluir = tema.get("incluir") or []
     if incluir and not _contem(texto, incluir):
         return False
+    if not all(_contem(texto, [t]) for t in tema.get("exigir") or []):
+        return False
     return not _contem(texto, tema.get("excluir") or [])
 
 

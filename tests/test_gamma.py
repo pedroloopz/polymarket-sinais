@@ -47,3 +47,15 @@ def test_midpoints_em_lotes(http):
     mids = Clob(http).midpoints(["tokA", "tokB", "tokA", None], lote=1)
     assert mids == {"tokA": 0.905, "tokB": 0.715}
     assert sum(1 for c in http.chamadas if c[0] == "POST") == 2  # duplicado e None ignorados
+
+
+def test_balancos_so_empresas_de_cripto(cfg):
+    tema = cfg.temas["balancos_cripto"]
+    fedex = parse_mercado({"id": "1", "question": "Will FedEx (FDX) beat quarterly earnings?"}, {})
+    jpm = parse_mercado({"id": "2", "question": "Will JPMorgan Chase (JPM) beat quarterly earnings?"}, {})
+    coin = parse_mercado({"id": "3", "question": "Will Coinbase (COIN) beat quarterly earnings?"}, {})
+    sem_balanco = parse_mercado({"id": "4", "question": "Will Coinbase list XRP?"}, {})
+    assert not combina_tema(fedex, tema)
+    assert not combina_tema(jpm, tema)
+    assert combina_tema(coin, tema)
+    assert not combina_tema(sem_balanco, tema)  # "exigir: earnings"
