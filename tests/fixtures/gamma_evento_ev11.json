@@ -1,0 +1,25 @@
+{
+ "id": "ev11",
+ "title": "Brazil runoff turnout above 80%?",
+ "slug": "turnout",
+ "markets": [
+  {
+   "id": "m12",
+   "question": "Brazil runoff turnout above 80%?",
+   "slug": "brazil-runoff-turnout-above-80%?",
+   "endDate": "2026-10-08T03:00:00Z",
+   "createdAt": "2026-10-04T00:00:00Z",
+   "volumeNum": 60000,
+   "liquidityNum": 3000.0,
+   "outcomes": "[\"Yes\", \"No\"]",
+   "outcomePrices": "[\"0.3\", \"0.7\"]",
+   "clobTokenIds": "[\"tokT\", \"tokT_no\"]",
+   "active": true,
+   "closed": false,
+   "bestBid": 0.29,
+   "bestAsk": 0.31,
+   "oneDayPriceChange": 0.01,
+   "groupItemTitle": ""
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+name: Coleta horária
+
+on:
+  schedule:
+    # De hora em hora, aos :07 (evita o pico das :00, quando o GitHub mais atrasa).
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dados
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BOT_DB: dados/bot.sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+
+      - name: Coletar snapshots
+        run: python -m bot.main coletar
+
+      - name: Salvar dados
+        if: always()
+        run: bash .github/scripts/salvar_dados.sh
+
+      - name: Avisar falha no Telegram
+        if: failure()
+        run: bash .github/scripts/avisar_falha.sh "coleta horária"

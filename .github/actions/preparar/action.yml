@@ -1,0 +1,27 @@
+name: Preparar
+description: Python 3.12, dependências do bot e o branch `dados` (SQLite) montado em ./dados
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: pip
+        cache-dependency-path: pyproject.toml
+
+    - name: Instalar o bot
+      shell: bash
+      run: pip install -q -e .
+
+    - name: Montar o branch dados
+      shell: bash
+      run: |
+        git config user.name "github-actions"
+        git config user.email "github-actions@users.noreply.github.com"
+        if git fetch -q --depth=1 origin dados:refs/remotes/origin/dados 2>/dev/null; then
+          git worktree add -q -B dados dados origin/dados
+        else
+          echo "Branch dados ainda não existe: criando vazio."
+          git worktree add -q --orphan -b dados dados
+        fi
+        ls -la dados

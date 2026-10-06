@@ -1,0 +1,58 @@
+# Todos os limiares do bot. Nada fica fixo no código.
+# Os valores marcados "(Telegram)" podem ser alterados pelo próprio Telegram;
+# o valor do Telegram (guardado no Cloudflare KV) tem prioridade sobre este arquivo.
+
+fuso: "America/Sao_Paulo"
+
+coleta:
+  resultados_por_busca: 20        # limit_per_type da busca da Gamma
+  max_mercados_por_tema: 40
+  ignorar_mercados_fechados: true
+  lote_midpoints: 50              # tokens por chamada POST /midpoints
+  pausa_entre_chamadas_s: 0.3     # gentileza com a API (a doc de limites estava inacessível na criação)
+
+filtros:
+  volume_min_sinal_usd: 1000000   # (Telegram) abaixo disso, só monitora
+  volume_min_exibir_usd: 50000    # abaixo disso, nem aparece no resumo
+  mercados_por_tema_resumo: 2
+
+novos:
+  idade_max_dias: 7               # só avisa mercado criado há até N dias (evita falso "novo")
+
+prazos:
+  dias_vencendo: 3
+
+silencio:                         # (Telegram) só 🚨 toca neste intervalo
+  ligado: true
+  inicio: "22:00"
+  fim: "07:00"
+
+balancos:
+  reacoes_historicas: 8
+  contagem_regressiva_dias: 10
+
+diario:
+  custo_estimado_pct: 0.2         # custo ida+volta descontado de cada operação simulada (%)
+  horizontes: ["1h", "1d", "1w"]
+  minimo_sinais_avaliados: 30
+  minimo_semanas: 8
+
+# ---- Fase 2 (declarados já para ficarem num lugar só) ----
+sinais:
+  zscore_min: 2.0                 # (Telegram)
+  janela_desvio_dias: 30
+  persistencia_leituras: 2
+  zona_distorcida: {abaixo: 0.10, acima: 0.90}
+  prazo_curto_dias: 3
+  espaco_minimo_pct_do_esperado: 50
+
+risco:
+  risco_por_operacao_pct: 1.0     # (Telegram)
+  atr_dias: 14
+  atr_multiplo_stop: 1.5
+  ganho_risco_min: 1.5            # (Telegram)
+  capital: null                   # (Telegram) /capital — nunca vai para o git
+
+protecao:
+  perdas_seguidas_para_pausar: 2
+  pausa_horas: 24

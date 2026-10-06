@@ -1,0 +1,103 @@
+# Temas monitorados.
+# - buscas: textos enviados à busca da Polymarket (Gamma /public-search).
+# - incluir: a pergunta ou o título do evento precisa conter pelo menos um destes termos
+#   (sem diferenciar maiúsculas). Evita mercados que só "esbarram" na busca.
+# - excluir: descarta se contiver algum destes termos.
+# - comando: nome do comando no Telegram (/ira, /fed...). Comandos do Telegram não aceitam acento.
+# - palavras_ditas: mercados do tipo "vai dizer X na teleconferência" — nunca geram sinal (módulo 5).
+# Os ativos ligados a cada tema ficam em ativos.yaml.
+
+temas:
+  ira:
+    nome: "Irã / Hormuz (paz)"
+    emoji: "🇮🇷"
+    comando: ira
+    ligado: true
+    buscas: ["Iran ceasefire", "Iran deal", "Strait of Hormuz", "Iran sanctions", "Iran blockade"]
+    incluir: ["iran", "hormuz", "tehran"]
+    excluir: []
+
+  mar_vermelho:
+    nome: "Mar Vermelho (fechamento)"
+    emoji: "🇾🇪"
+    comando: mar
+    ligado: true
+    buscas: ["Houthi", "Red Sea", "Bab el-Mandeb", "Yemen ceasefire"]
+    incluir: ["houthi", "red sea", "mandeb", "yemen"]
+    excluir: []
+
+  taiwan:
+    nome: "China–Taiwan (escalada)"
+    emoji: "🇹🇼"
+    comando: taiwan
+    ligado: true
+    buscas: ["China invade Taiwan", "Taiwan blockade", "China Taiwan"]
+    incluir: ["taiwan"]
+    excluir: []
+
+  ucrania:
+    nome: "Rússia–Ucrânia (paz)"
+    emoji: "🇺🇦"
+    comando: ucrania
+    ligado: true
+    buscas: ["Russia Ukraine ceasefire", "Ukraine peace deal"]
+    incluir: ["ukraine", "russia"]
+    excluir: []
+
+  fed:
+    nome: "Fed (corte de juros)"
+    emoji: "🏦"
+    comando: fed
+    ligado: true
+    buscas: ["Fed decision", "Fed rate cut", "FOMC"]
+    incluir: ["fed", "fomc", "interest rate"]
+    excluir: []
+
+  brasil:
+    nome: "Eleição 2026"
+    emoji: "🇧🇷"
+    comando: brasil
+    ligado: true
+    buscas: ["Brazil presidential election", "Brazil election", "Lula"]
+    incluir: ["brazil", "lula", "brasil"]
+    excluir: []
+
+  tarifas:
+    nome: "Tarifas e comércio"
+    emoji: "🇺🇸"
+    comando: tarifas
+    ligado: true
+    buscas: ["tariffs China", "tariffs Brazil", "trade deal China"]
+    incluir: ["tariff", "trade deal", "trade war"]
+    excluir: []
+
+  balancos_cripto:
+    nome: "Balanços de cripto"
+    emoji: "🪙"
+    comando: balancos
+    ligado: true
+    buscas: ["beat quarterly earnings", "Coinbase earnings", "MicroStrategy earnings", "Strategy earnings",
+             "Robinhood earnings", "Circle earnings", "MARA earnings", "Riot earnings", "Galaxy earnings"]
+    incluir: ["earnings"]
+    excluir: []
+    palavras_ditas: ["say", "mention", "said"]
+
+  btc:
+    nome: "Cripto (termômetro)"
+    emoji: "₿"
+    comando: cripto
+    ligado: true
+    buscas: ["Bitcoin price", "Bitcoin above"]
+    incluir: ["bitcoin", "btc"]
+    excluir: ["ethereum", "solana"]
+
+# Empresas do módulo 10 (balanços de cripto). "nomes" serve para achar o mercado
+# "beat quarterly earnings" correspondente na Polymarket.
+empresas_cripto:
+  COIN: {nomes: ["coinbase", "coin"]}
+  MSTR: {nomes: ["microstrategy", "strategy", "mstr"]}
+  HOOD: {nomes: ["robinhood", "hood"]}
+  CRCL: {nomes: ["circle", "crcl"]}
+  MARA: {nomes: ["mara", "marathon"]}
+  RIOT: {nomes: ["riot"]}
+  GLXY: {nomes: ["galaxy", "glxy"]}
