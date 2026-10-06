@@ -35,7 +35,8 @@ Bot de **sinais** que lê mercados de previsão (Polymarket), cruza com preços 
 | 5 — Nota de risco de manipulação (concentração, Kalshi, volume, reversão, GDELT, palavras ditas) | ✅ |
 | 6 — Carteiras vencedoras: ranking diário + alerta quando abrem/aumentam posição | ✅ |
 | 9 — Agenda (FOMC, payroll, CPI das fontes oficiais; Copom/eleição/OPEP+ em `config/agenda.yaml`) + alerta na véspera | ✅ |
-| 14 (X), Truth Social, Claude API, painel HTML | Fase 4 |
+| 14 — Rascunhos de posts para o X (Termômetro do Caos, virada, fio, placar, saída de posição), sem enquetes | ✅ |
+| Truth Social, resumos em linguagem natural, painel HTML | Fase 4 (resto) |
 
 ---
 
@@ -67,6 +68,8 @@ No navegador do celular (o app do GitHub não edita Secrets): abra o repositóri
 | `TELEGRAM_CHAT_ID` | seu chat ID (passo 4) |
 | `CLOUDFLARE_API_TOKEN` | token do Cloudflare |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID do Cloudflare |
+| `ANTHROPIC_API_KEY` *(opcional)* | Chave da API da Anthropic (posts do X escritos pela IA) |
+| `ALERTA_EMA_TOKEN` *(opcional)* | Token do GitHub só leitura do alerta-ema (posições automáticas) |
 
 > Dica: no "Settings", se não aparecer, toque em **⋯** ou role a barra de abas para o lado; ou ative "Versão para computador" no navegador.
 
@@ -113,7 +116,32 @@ App do GitHub → repositório → **Actions** → toque no workflow → **Run w
 | `/capital 10.000,00` | Capital para o cálculo de tamanho de posição (fica só no Cloudflare KV) |
 | `/silencio` | Botões: 22h–7h, 23h–6h, ligar, desligar. Também `/silencio 22-7` |
 | `/status` | Saúde das fontes, última coleta e último resumo |
+| `/post` · `/posicao` · `/zerar` · `/posicoes` · `/engajamento` | Posts para o X (seção acima) |
 | `/ajuda` | Lista de comandos |
+
+## 📣 Posts para o X (@pedroloopz)
+
+O bot **não publica sozinho** (sem API paga do X): ele manda o **rascunho no Telegram** e você publica com um toque.
+
+| Formato | Quando chega |
+|---|---|
+| 🔮 Termômetro do Caos (2 versões + gráfico com marca d'água) | 08h30, 10h20 e 18h30 (`config/regras.yaml` → `x.horarios`), ou na hora com `/post` |
+| ⚡ Alerta de virada | Quando o Worker vê |z| ≥ 3 |
+| 🧵 Fio de 4–6 posts | Quando um mercado líquido anda ≥ 15 p.p. em 24 h |
+| 📒 Placar da Semana | Domingo, junto do placar |
+| 📌 Post de saída | Quando você zera (`/zerar`) ou a posição some do alerta-ema |
+
+Botões em cada rascunho: **✅ Abrir no X** (texto já preenchido) · **🔄 Outra versão** · **🔥 Mais forte** · **🧊 Mais sóbrio**.
+
+**Tom:** briguento, toma posição, xinga — **o mercado e a narrativa, nunca pessoas** (injúria/difamação; em período eleitoral, risco de crime eleitoral). Política: veredito só sobre o mercado.
+
+**Travas no código (não dependem da IA):** nada de "compre/venda/entre/preço-alvo/stop" (Resolução CVM 20/2021); ≤ 280 caracteres; ≤ 2 emojis; a linha "📌 Minha posição … Não é recomendação." é escrita pelo código a partir das posições reais; ativo com volume < R$/US$ 5 mi/dia nunca entra (anti pump-and-dump, Resolução CVM 62/2022); post de saída marcado como **obrigatório** se você zerar < 24 h depois de um post sobre o ativo.
+
+**Posições:** `/posicao comprado PETR4` (preço do momento, ou informe: `/posicao vendido XLE 90,10`), `/zerar PETR4`, `/posicoes`. Opcional: as posições do bot **alerta-ema** entram sozinhas com o Secret `ALERTA_EMA_TOKEN` (token fine-grained do GitHub, só leitura de *Contents* no alerta-ema). Só ticker, lado e data aparecem; quantidade nunca.
+
+**Aprender com o engajamento:** responda ao rascunho com `/engajamento <link> <curtidas> <reposts> A` (ou B). Domingo, o placar mostra o melhor formato, gancho e horário, e os posts campeões viram exemplo para os próximos.
+
+**Texto pela IA:** Secret `ANTHROPIC_API_KEY` (opcional). Sem ele, os rascunhos saem de um modelo fixo, secos mas corretos. Modelo e esforço em `config/regras.yaml` → `x.modelo` / `x.effort`.
 
 ## 🧭 Como ler as mensagens
 

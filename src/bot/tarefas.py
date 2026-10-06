@@ -109,6 +109,8 @@ def tarefa_coletar(ctx: Contexto) -> dict[str, str]:
             vigiados = {m["id"] for m in (ctx.kv.ler("vigia", {}) or {}).get("mercados", [])}
         _rodar_sinais(ctx, worker_vivo=worker_vivo, excluir=vigiados)
         extras.publicar_vigia(ctx)
+        p = placar.calcular(con, agora)
+        extras.publicar_pauta_x(ctx, placar.linha_resumo(p))
         _publicar_painel(ctx, fontes, {**_textos_comuns(ctx), "tempo_real": vigia.texto_status(rt, agora)})
     except Exception:
         status = "erro"
@@ -176,6 +178,13 @@ def tarefa_placar_semanal(ctx: Contexto) -> str:
     cfg, con, agora = ctx.cfg, ctx.con, ctx.agora
     d = cfg.regras.get("diario", {})
     texto = placar.semanal(con, agora, d.get("minimo_sinais_avaliados", 30), d.get("minimo_semanas", 8))
+    from bot.saida import pauta_x
+
+    engajamento = (ctx.kv.ler("x_engajamento", []) or []) if ctx.kv.ativo else []
+    texto += pauta_x.resumo_engajamento(engajamento)
+    extras.pedir_post(
+        ctx, {"id": f"placar:{agora.date().isoformat()}", "tipo": "placar", "dados": {"placar": texto}}
+    )
     db.guardar_texto(con, "placar_semanal", texto)
     despachar(con, ctx.tg, texto, "🔔", cfg.regras, agora)
     _publicar_painel(ctx, {}, _textos_comuns(ctx))
@@ -231,6 +240,7 @@ def tarefa_resumo(ctx: Contexto) -> str:
         hoje, fontes_agenda = [], {"Agenda": "indisponível"}
     fontes.update(fontes_agenda)
     fontes["Carteiras (Data API)"] = extras.ranquear_baleias(ctx)
+    extras.atualizar_liquidez(ctx)
     texto_bal = balancos.texto_completo(lista, agora) if lista else "🪙 Balanços indisponíveis hoje."
     db.guardar_texto(con, "balancos", texto_bal)
 

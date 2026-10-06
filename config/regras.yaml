@@ -93,6 +93,15 @@ kalshi:
   paginas: 15                     # páginas de 200 eventos abertos
   similaridade_min: 0.45          # casamento conservador de perguntas
 
+x:                                # módulo 14 — posts para o X (Fase 4)
+  perfil: "@pedroloopz"           # marca d'água dos gráficos
+  horarios: ["08:30", "10:20", "18:30"]   # rascunhos do Termômetro do Caos (Brasília)
+  modelo: "claude-opus-5-5"       # Claude que escreve; "claude-sonnet-5-5" custa metade
+  effort: "low"                   # textos curtos: esforço baixo basta e sai mais barato
+  virada_z_min: 3                 # alerta de virada quando |z| ≥ 3
+  fio_min_pp: 15                  # fio quando um mercado líquido anda ≥ 15 p.p. em 24 h
+  liquidez_min_diaria: 5000000    # ativo com menos que isso (volume financeiro/dia) nunca entra em post
+
 baleias:                          # módulo 6
   minimo_resolvidos: 20
   candidatas: 60

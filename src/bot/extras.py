@@ -267,3 +267,62 @@ def texto_agenda(con: sqlite3.Connection, hoje: date, dias: int = 30) -> str:
         )
     partes.append("Alerta com as probabilidades na véspera de cada evento.")
     return "\n".join(partes)
+
+
+# ---------- posts do X (módulo 14) ----------
+
+
+def _pedidos(con: sqlite3.Connection) -> list[dict]:
+    from bot.db import ler_texto
+
+    return json.loads(ler_texto(con, "x_pedidos", "[]") or "[]")
+
+
+def pedir_post(ctx, pedido: dict) -> None:
+    """Enfileira um pedido para o Worker escrever (fio, placar da semana)."""
+    lista = [p for p in _pedidos(ctx.con) if p["id"] != pedido["id"]] + [pedido]
+    lista = lista[-20:]
+    guardar_texto(ctx.con, "x_pedidos", json.dumps(lista, ensure_ascii=False))
+    if ctx.kv.ativo:
+        ctx.kv.gravar("x_pedidos", lista)
+
+
+def publicar_pauta_x(ctx, placar_curto: str) -> None:
+    from bot.coleta import carteira_externa
+    from bot.saida import pauta_x
+
+    if not ctx.kv.ativo:
+        return
+    try:
+        try:
+            auto = carteira_externa.ler(ctx.http)
+        except Exception as erro:
+            aviso(_log, "posições do alerta-ema indisponíveis", erro=str(erro))
+            auto = None  # None = não sei (o Worker não trata como zerada)
+        pauta = pauta_x.montar(ctx.con, ctx.cfg, ctx.agora, posicoes_auto=auto, placar_curto=placar_curto)
+        ctx.kv.gravar("x_pauta", pauta)
+        fio = pauta_x.pedido_fio(ctx.con, ctx.cfg, pauta["destaques"], ctx.agora)
+        if fio:
+            pedir_post(ctx, fio)
+        info(_log, "pauta do X publicada", destaques=len(pauta["destaques"]), grafico=bool(pauta["grafico_png"]),
+             posicoes_auto=None if auto is None else len(auto))  # fmt: skip
+    except Exception as erro:
+        aviso(_log, "pauta do X não publicada", erro=str(erro))
+
+
+def atualizar_liquidez(ctx) -> None:
+    from bot.saida import pauta_x
+
+    auto = {}
+    try:
+        from bot.coleta import carteira_externa
+
+        auto = carteira_externa.ler(ctx.http)
+    except Exception:
+        pass
+    tickers = sorted(
+        set(ctx.cfg.todos_tickers())
+        | set(auto)
+        | set((ctx.kv.ler("posicoes", {}) or {}) if ctx.kv.ativo else {})
+    )
+    pauta_x.atualizar_liquidez(ctx.con, tickers, precos.volume_financeiro)

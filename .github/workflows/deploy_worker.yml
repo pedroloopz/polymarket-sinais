@@ -70,6 +70,10 @@ jobs:
           echo "::add-mask::$s"
           echo "valor=$s" >> "$GITHUB_OUTPUT"
 
+      - name: Instalar dependências do Worker
+        run: npm ci --no-audit --no-fund
+        working-directory: worker
+
       - name: Publicar no Cloudflare
         id: wrangler
         uses: cloudflare/wrangler-action@v3
@@ -82,11 +86,14 @@ jobs:
             TELEGRAM_BOT_TOKEN
             TELEGRAM_CHAT_ID
             WEBHOOK_SECRET
+            ANTHROPIC_API_KEY
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           # Sem chat ID ainda: "0" não autoriza ninguém, e o /start responde com o seu ID.
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '0' }}
           WEBHOOK_SECRET: ${{ steps.segredo.outputs.valor }}
+          # Opcional (posts do X). Sem a chave, os rascunhos saem de um modelo de texto fixo.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || '-' }}
 
       - name: Descobrir a URL do Worker
         id: url
@@ -134,6 +141,11 @@ jobs:
             {"command":"config","description":"Limiares, temas e silêncio"},
             {"command":"agenda","description":"Eventos dos próximos 30 dias"},
             {"command":"baleias","description":"Carteiras vencedoras"},
+            {"command":"post","description":"Rascunho de post para o X"},
+            {"command":"posicao","description":"Declarar posição (ex.: comprado PETR4)"},
+            {"command":"zerar","description":"Zerar posição e gerar post de saída"},
+            {"command":"posicoes","description":"Posições declaradas"},
+            {"command":"engajamento","description":"Registrar curtidas e reposts de um post"},
             {"command":"capital","description":"Definir capital"},
             {"command":"silencio","description":"Horário de silêncio"},
             {"command":"status","description":"Saúde das fontes"},

@@ -108,6 +108,25 @@ def ohlc_diario(ticker: str, dias: int = 60) -> pd.DataFrame:
     return df[["High", "Low", "Close"]].dropna() if df is not None and not df.empty else pd.DataFrame()
 
 
+def volume_financeiro(tickers: list[str], dias: int = 20) -> dict[str, float]:
+    """Volume financeiro médio diário (preço × volume) dos últimos `dias` pregões."""
+    df = _yf().download(tickers, period="2mo", interval="1d", progress=False, auto_adjust=False,
+                        threads=True, group_by="column")  # fmt: skip
+    if df is None or df.empty:
+        return {}
+    saida = {}
+    for t in tickers:
+        try:
+            fech = df["Close"][t] if isinstance(df.columns, pd.MultiIndex) else df["Close"]
+            vol = df["Volume"][t] if isinstance(df.columns, pd.MultiIndex) else df["Volume"]
+            v = float((fech * vol).dropna().tail(dias).mean())
+            if v == v:  # não é NaN
+                saida[t] = v
+        except KeyError:
+            continue
+    return saida
+
+
 def datas_balanco(ticker: str, limite: int = 12) -> pd.DataFrame:
     """Datas de balanço (passadas e futuras) com EPS estimado/realizado."""
     df = _yf().Ticker(ticker).get_earnings_dates(limit=limite)
