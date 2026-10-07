@@ -69,7 +69,8 @@ def test_variacao_24h_pela_serie(con, cfg, http):
     _coletar(con, cfg, http)
     linhas = resumo.linhas_tema(con, cfg, "ira", AGORA, 2)
     assert "90%" in linhas[0] or "91%" in linhas[0]
-    assert "+10,5 p.p." in linhas[0]
+    assert "▲ +10,5 p.p. em 24 h" in linhas[0]
+    assert "🔴 SHORT petróleo" in linhas[0] and "🟢 LONG aéreas" in linhas[0]
 
 
 def test_resumo_diario_formato(con, cfg, http):
@@ -85,10 +86,12 @@ def test_resumo_diario_formato(con, cfg, http):
         sinais_acionaveis=[],
         fontes={"Polymarket Gamma": "ok", "Preços (yfinance)": "indisponível"},
     )
-    assert texto.startswith("🗓️ <b>06/10 — Mercados de previsão</b>")
+    assert texto.startswith("☀️ <b>Resumo de 06/10</b>")
     assert "🇮🇷" in texto and "🇧🇷" in texto
-    assert "Flávio: 85% | Lula: 16%" in texto  # midpoint 0,155 arredonda para 16%
-    assert "🎯 Sinais acionáveis: nenhum ⏸️" in texto
+    assert "Flávio 85% · Lula 16%" in texto  # midpoint 0,155 arredonda para 16%
+    assert "Nada para operar agora ⏸️" in texto
+    assert texto.index("PARA OPERAR") < texto.index("POLYMARKET")
+    assert "LONG = comprar" in texto
     assert "⚠️ Fonte Preços (yfinance): indisponível" in texto
 
 

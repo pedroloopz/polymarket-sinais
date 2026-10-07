@@ -19,6 +19,7 @@ import pandas as pd
 from bot import formato as f
 from bot.analise import calibracao, manipulacao, risco
 from bot.analise.sinais import desvio_horario, preco_em
+from bot.coleta import traducao
 from bot.config import Config
 from bot.db import de_iso, guardar_texto, iso, ler_texto
 from bot.diario.registro import Sinal, registrar
@@ -104,11 +105,16 @@ def montar(
                 "bolsa": bolsa_de(p0["ativo"]), "atr": atrs.get(p0["ativo"]),
                 "alt": {"ativo": alt["ativo"], "beta_10pp": alt["beta_10pp"]} if alt else None,
             }  # fmt: skip
-        hip = [(t, s) for t, s in cfg.ativos_do_tema(m["tema"]).items() if s and t in cfg.ativos]
+        pol = traducao.polaridade(con, m["id"])
+        hip = [
+            (t, s * pol) for t, s in cfg.ativos_do_tema(m["tema"]).items() if s and pol and t in cfg.ativos
+        ]
         nota = manipulacao.ler(con, m["id"])
         mercados.append({
             "id": m["id"], "token": m["token_sim"], "tema": m["tema"], "emoji": tema.get("emoji", ""),
-            "nome_tema": tema.get("nome", m["tema"]), "pergunta": m["pergunta"], "sigma_h": sigma,
+            "nome_tema": tema.get("nome", m["tema"]), "sigma_h": sigma,
+            "pergunta": traducao.pergunta_pt(con, m["id"], m["pergunta"]), "polaridade": pol,
+            "leitura": tema.get("leitura") or {},
             "fim": m["fim"], "manip": nota.nota if nota else None, "par": par,
             "hipotese": {"ativo": hip[0][0], "sentido": hip[0][1]} if hip else None,
             "semaforo": tema.get("semaforo") or {},
@@ -141,6 +147,7 @@ def montar(
         "capital_brl": capital,
         "cambio_brl": preco_em(con, "BRL=X", agora, janela_h=96),
         "pregoes": cfg.pregoes,
+        "setores": {t: i["setor"] for t, i in cfg.ativos.items() if i.get("setor")},
         "mercados": mercados,
         "abertos": [
             {

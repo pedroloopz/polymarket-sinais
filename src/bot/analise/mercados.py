@@ -24,6 +24,9 @@ class Linha:
     prob: float | None
     var_24h: float | None
     palavras_ditas: bool
+    # Textos já em português quando há tradução (pergunta/item/evento_titulo); o original fica aqui.
+    original: str = ""
+    polaridade: int = 1  # +1: "Sim" a favor do tema; −1: contra; 0: indefinido
 
 
 def variacao_24h(
@@ -48,13 +51,19 @@ def _linha(con: sqlite3.Connection, r: sqlite3.Row, agora: datetime) -> Linha:
     if var is None:
         var = r["var_24h_gamma"]
     slug = r["evento_slug"] or r["slug"]
+    chaves = r.keys()
+
+    def pt(campo: str, original: str | None) -> str:
+        return (r[campo] if campo in chaves and r[campo] else None) or original or ""
+
+    pol = r["polaridade"] if "polaridade" in chaves and r["polaridade"] is not None else 1
     return Linha(
         id=r["id"],
         tema=r["tema"],
-        pergunta=r["pergunta"],
-        item=r["item"] or "",
+        pergunta=pt("pergunta_pt", r["pergunta"]),
+        item=pt("item_pt", r["item"]),
         evento_id=r["evento_id"] or "",
-        evento_titulo=r["evento_titulo"] or "",
+        evento_titulo=pt("titulo_pt", r["evento_titulo"]),
         link=f"https://polymarket.com/event/{slug}" if slug else "",
         fim=de_iso(r["fim"]),
         criado_em=de_iso(r["criado_em"]),
@@ -62,6 +71,8 @@ def _linha(con: sqlite3.Connection, r: sqlite3.Row, agora: datetime) -> Linha:
         prob=r["prob"],
         var_24h=var,
         palavras_ditas=bool(r["palavras_ditas"]),
+        original=r["pergunta"],
+        polaridade=int(pol),
     )
 
 
@@ -72,13 +83,15 @@ def ativos(
     corte = iso(agora - timedelta(hours=visto_desde_h))
     # Prazo vencido com preço já decidido (≤2% ou ≥98%) = só aguardando resolução: sai das telas.
     # Prazo vencido com preço em aberto continua (ex.: eleição que foi para o 2º turno).
-    sql = """SELECT * FROM mercados WHERE fechado = 0 AND ultimo_visto >= ?
-             AND (fim IS NULL OR fim > ? OR (prob > 0.02 AND prob < 0.98))"""
+    sql = """SELECT m.*, t.pergunta_pt, t.item_pt, t.titulo_pt, t.polaridade FROM mercados m
+             LEFT JOIN traducoes t ON t.mercado_id = m.id
+             WHERE m.fechado = 0 AND m.ultimo_visto >= ?
+             AND (m.fim IS NULL OR m.fim > ? OR (m.prob > 0.02 AND m.prob < 0.98))"""
     args: list = [corte, iso(agora)]
     if tema:
-        sql += " AND tema = ?"
+        sql += " AND m.tema = ?"
         args.append(tema)
-    sql += " ORDER BY volume DESC"
+    sql += " ORDER BY m.volume DESC"
     return [_linha(con, r, agora) for r in con.execute(sql, args).fetchall()]
 
 

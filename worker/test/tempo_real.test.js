@@ -18,11 +18,12 @@ const REGRAS = {
 };
 const MERCADO = {
   id: "m1", token: "tokA", tema: "ira", emoji: "🇮🇷", nome_tema: "Irã / Hormuz (paz)",
-  pergunta: "US x Iran ceasefire by December 31?", sigma_h: 0.05, fim: "2026-12-31T00:00:00Z", manip: "🟢",
+  pergunta: "Cessar-fogo EUA x Irã até 31/12?", polaridade: 1,
+  leitura: { sobe: "paz mais provável → petróleo mais barato", cai: "guerra mais provável → petróleo mais caro" }, sigma_h: 0.05, fim: "2026-12-31T00:00:00Z", manip: "🟢",
   par: { ativo: "XLE", beta_10pp: -1.5, defasagem_min: 45, bolsa: "EUA", atr: 0.5, alt: { ativo: "UAL", beta_10pp: 2 } },
   hipotese: { ativo: "XLE", sentido: -1 }, semaforo: { "BZ=F": -1, "^VIX": -1 },
 };
-const VIGIA = { gerado_em: AGORA.toISOString(), regras: REGRAS, pregoes: PREGOES, mercados: [MERCADO], abertos: [], capital_brl: 50000, cambio_brl: 5 };
+const VIGIA = { gerado_em: AGORA.toISOString(), regras: REGRAS, pregoes: PREGOES, mercados: [MERCADO], abertos: [], capital_brl: 50000, cambio_brl: 5, setores: { XLE: "petróleo" } };
 
 function leituras(valores, fim = AGORA) {
   return valores.map((p, i) => [fim.getTime() - (valores.length - i) * 5 * MIN, p]);
@@ -76,7 +77,7 @@ test("ciclo: sinal acionável 🚨 com plano, depois stop", async () => {
   });
   assert.equal(enviadas.length, 1);
   const msg = enviadas[0];
-  for (const trecho of ["🚨 SINAL", "⚡", "🔻 SHORT XLE (alt.: 🔺 LONG UAL)", "🎯 Alvo: US$", "🛑 Stop: US$ 90,85", "Ganho/risco", "Esperado −2,7%", "Latência do alerta: 13 min"]) {
+  for (const trecho of ["🚨 <b>OPORTUNIDADE FORTE</b>", "⚡", "❓ Cessar-fogo EUA x Irã até 31/12?", "👉 <b>🔴 SHORT XLE</b> (petróleo)", "💡 paz mais provável", "Alternativa: 🟢 LONG UAL", "🎯 Alvo US$", "🛑 Stop US$ 90,85", "costuma andar −2,7%", "não é recomendação"]) {
     assert.ok(msg.includes(trecho), `${trecho}\n${msg}`);
   }
   const ev = estado.eventos.find((e) => e.tipo === "sinal");
@@ -110,7 +111,7 @@ test("sem calibração: informativo vai só para o diário/resumo", async () => 
   assert.equal(enviadas.length, 0);
   const ev = estado.eventos.find((e) => e.tipo === "sinal");
   assert.equal(ev.sinal.urgencia, "📋");
-  assert.ok(ev.linha.includes("informativo"));
+  assert.ok(ev.linha.includes("não operar: par ainda não calibrado"), ev.linha);
 });
 
 test("manipulação 🔴 e trava bloqueiam o acionável", async () => {
@@ -159,4 +160,16 @@ test("rodar: vigia velha não faz nada; vigia nova grava rt", async () => {
   dados.vigia = JSON.stringify({ ...VIGIA, gerado_em: new Date(AGORA.getTime() - 5 * 3600e3).toISOString() });
   assert.equal(await rodar(env, AGORA), null);
   assert.equal(dados.rt, undefined);
+});
+
+test("pergunta contra o tema: a leitura acompanha a polaridade", async () => {
+  const enviadas = [];
+  const m = { ...MERCADO, par: null, polaridade: -1, hipotese: { ativo: "XLE", sentido: 1 } };
+  const estado = await ciclo({
+    vigia: { ...VIGIA, mercados: [m] }, rt: { leituras: { m1: leituras([0.6, 0.6, 0.7, 0.76]) } }, ack: 0, agora: AGORA,
+    buscarMids: async () => ({ tokA: 0.78 }), buscarPreco: precos({ XLE: [90.65, 90.1] }), enviar: async (t) => enviadas.push(t),
+  });
+  const ev = estado.eventos.find((e) => e.tipo === "sinal");
+  assert.equal(ev.sinal.sentido, 1);
+  assert.match(ev.linha, /🟢 LONG XLE/);
 });

@@ -68,7 +68,7 @@ No navegador do celular (o app do GitHub não edita Secrets): abra o repositóri
 | `TELEGRAM_CHAT_ID` | seu chat ID (passo 4) |
 | `CLOUDFLARE_API_TOKEN` | token do Cloudflare |
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID do Cloudflare |
-| `ANTHROPIC_API_KEY` *(opcional)* | Chave da API da Anthropic (posts do X escritos pela IA) |
+| `ANTHROPIC_API_KEY` *(opcional)* | Chave da API da Anthropic: tradução das perguntas para o português e posts do X escritos pela IA |
 | `ALERTA_EMA_TOKEN` *(opcional)* | Token do GitHub só leitura do alerta-ema (posições automáticas) |
 
 > Dica: no "Settings", se não aparecer, toque em **⋯** ou role a barra de abas para o lado; ou ative "Versão para computador" no navegador.
@@ -147,14 +147,28 @@ Botões em cada rascunho: **✅ Abrir no X** (texto já preenchido) · **🔄 Ou
 
 **Sinal (exemplo):**
 ```
-🚨 SINAL — 🇮🇷 Irã / Hormuz (paz)
-Paz: 62% → 78% (+16,0 p.p., z = 2,8) em 2 h
-Semáforo: 🟢 Brent −2,1% | VIX −4,0% | XLE −0,6%
-🔻 SHORT XLE (alt.: 🔺 LONG UAL)
-Entrada ~US$ 90,10 | 🎯 Alvo: US$ 88,48 (parcial US$ 89,29)
-🛑 Stop: US$ 90,85 | Ganho/risco: 2,2 | ⏱️ Sair até 15:00
-Esperado −2,4% | realizado −0,6% → espaço de −1,8%
+🚨 OPORTUNIDADE FORTE · 🇮🇷 Irã / Hormuz (paz)
+❓ Cessar-fogo entre EUA e Irã até 31/12?
+📊 Chance: 62% → 78% (▲ 16 p.p. em 2 h)
+
+👉 🔴 SHORT XLE (petróleo)
+💡 paz mais provável → petróleo mais barato e menos medo
+📏 Pelo histórico, XLE costuma andar −2,4% com esse movimento
+
+💵 Entrada ~US$ 90,10
+🎯 Alvo US$ 88,48 · 🛑 Stop US$ 90,85
+⏱️ Sair até 15:00 · tamanho 120 un. (≈ US$ 10.812,00)
+
+Confiança 🟢 alta · Manipulação 🟢
+⚠️ Sinal do sistema, não é recomendação.
 ```
+- **🟢 LONG** = comprar (ganha se subir) · **🔴 SHORT** = vender/ficar vendido (ganha se cair).
+- **🚨/🔔 OPORTUNIDADE**: dá para operar (tem entrada, alvo e stop). **👀 Movimento**: a chance mexeu, mas não vale operar; vai para o resumo com o motivo ("não operar: pregão fechado").
+- **Resumo diário**: 🎯 *Para operar* primeiro; depois *O que mudou na Polymarket*, com quem ganha (🟢) e quem perde (🔴) na bolsa para cada mercado que mexeu ≥ 3 p.p.
+- **Telas de tema** (/ira, /fed...): o que fazer se a chance **sobe** e se **cai**, por setor, e o efeito **📏 medido** pela calibração quando existe.
+- **Português**: as perguntas são traduzidas uma vez pela API da Anthropic (Secret `ANTHROPIC_API_KEY`). A tradução também diz se a pergunta é **a favor ou contra** o tema: "EUA atacam o Irã?" no tema *paz* tem a jogada invertida (🔄). Sem a chave, as perguntas ficam em inglês.
+- Os números técnicos (z-score, latência, defasagem, semáforo detalhado) continuam no diário e no /ranking; saíram do alerta para ele caber numa olhada.
+
 - **z**: quantas vezes o movimento é maior que o normal da hora (z ≥ 2 = incomum). Calculado no log-odds, que trata igual "50%→60%" e "90%→95%".
 - **Persistência**: só vira sinal se o movimento se mantiver na leitura seguinte (≥ 50% dele).
 - **Semáforo**: 🟢 indicadores confirmam · 🟡 só a Polymarket mexeu · 🔴 indicadores contra.
@@ -173,9 +187,8 @@ Esperado −2,4% | realizado −0,6% → espaço de −1,8%
 - **Probabilidade**: midpoint do livro (média entre compra e venda), nunca o último negócio.
 - **p.p.**: pontos percentuais. `91% (−2,0 p.p.)` = caiu de 93% para 91% em 24 h.
 - **👁️**: mercado com volume abaixo do mínimo para sinal (US$ 1 milhão): só monitorado.
-- **🔺 / 🔻 / ❔** ao lado dos ativos: reação esperada **se a probabilidade do evento subir** (hipótese inicial; a calibração da Fase 2 mede o valor real).
 - **🔴 palavras ditas**: mercados do tipo "vai dizer X na teleconferência". Quem fala decide o resultado: nunca geram sinal.
-- **Urgência**: 🚨 toca a qualquer hora · 🔔 normal (segurado durante o silêncio e entregue depois) · 📋 só no resumo.
+- **Urgência**: 🚨 toca a qualquer hora · 🔔 normal (segurado durante o silêncio e entregue depois) · 👀/📋 só no resumo.
 - **⚠️ Amostra insuficiente**: até haver 30 sinais avaliados e 8 semanas, o placar é só observação.
 - **Balanços**: "confirmada" = o Yahoo informa uma data única; "estimada" = janela de datas. Bater a estimativa ≠ ação subir.
 

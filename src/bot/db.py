@@ -150,6 +150,17 @@ CREATE TABLE IF NOT EXISTS agenda (
 );
 
 -- Mensagens 🔔 seguradas durante o horário de silêncio.
+-- Tradução para o português e polaridade: +1 = "Sim" a favor do tema, -1 = contra, 0 = indefinido.
+CREATE TABLE IF NOT EXISTS traducoes (
+    mercado_id TEXT PRIMARY KEY,
+    pergunta_pt TEXT,
+    item_pt TEXT,
+    titulo_pt TEXT,
+    polaridade INTEGER,
+    modelo TEXT,
+    ts TEXT
+);
+
 CREATE TABLE IF NOT EXISTS fila (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts TEXT NOT NULL,

@@ -1,4 +1,8 @@
-"""Textos do resumo diário e das telas por tema (usados no Telegram e no painel do Worker)."""
+"""Textos do resumo diário e das telas por tema (usados no Telegram e no painel do Worker).
+
+Formato pensado para ler no celular: primeiro o que dá para operar, depois o mapa
+(o que mudou na Polymarket e quem ganha ou perde na bolsa com isso).
+"""
 
 from __future__ import annotations
 
@@ -6,50 +10,84 @@ import sqlite3
 from datetime import datetime
 
 from bot import formato as f
-from bot.analise import manipulacao
+from bot.analise import jogada, manipulacao
 from bot.analise.mercados import Linha, agrupar_por_evento, ativos
 from bot.config import Config
 
-AVISO_SISTEMA = "⚠️ Sinal de sistema, não recomendação."
+AVISO_SISTEMA = "⚠️ Sinal do sistema, não é recomendação."
+LEGENDA = "ℹ️ LONG = comprar (ganha se subir) · SHORT = vender/vendido (ganha se cair)"
+MOVIMENTO_MIN = 0.03  # 3 p.p. em 24 h: abaixo disso o mercado aparece como "estável"
 
 
-def _rotulo_grupo(grupo: list[Linha]) -> str:
+def seta_var(var: float | None) -> str:
+    """'▲ +16 p.p. em 24 h' | '▼ −3 p.p. em 24 h' | 'estável'."""
+    if var is None:
+        return "sem histórico de 24 h"
+    if abs(var) < MOVIMENTO_MIN:
+        return "estável em 24 h"
+    return f"{'▲' if var > 0 else '▼'} {f.pp(var)} em 24 h"
+
+
+def _titulo(grupo: list[Linha], limite: int = 70) -> str:
     if len(grupo) == 1:
-        return f.encurtar(grupo[0].pergunta, 60)
-    return f.encurtar(grupo[0].evento_titulo or grupo[0].pergunta, 45)
+        return f.encurtar(grupo[0].pergunta, limite)
+    return f.encurtar(grupo[0].evento_titulo or grupo[0].pergunta, limite)
 
 
 def _risco(con: sqlite3.Connection | None, grupo: list[Linha]) -> str:
-    """ " ⚠️ risco 🟡" quando algum mercado do grupo tem nota de manipulação média ou alta."""
+    """'⚠️ risco de manipulação 🟡' quando algum mercado do grupo tem nota média ou alta."""
     if con is None:
         return ""
     notas = [n.nota for x in grupo if (n := manipulacao.ler(con, x.id))]
     pior = "🔴" if "🔴" in notas else ("🟡" if "🟡" in notas else "")
-    return f" ⚠️ risco {pior}" if pior else ""
+    return f"⚠️ risco de manipulação {pior}" if pior else ""
 
 
-def linha_grupo(
-    grupo: list[Linha], emoji: str, volume_min_sinal: float, con: sqlite3.Connection | None = None
-) -> str:
-    """Uma linha do resumo. Grupo = mercados do mesmo evento (ex.: candidatos)."""
-    vigia = ("" if sum(x.volume for x in grupo) >= volume_min_sinal else " 👁️") + _risco(con, grupo)
+def bloco_grupo(
+    con: sqlite3.Connection | None,
+    cfg: Config,
+    grupo: list[Linha],
+    emoji: str,
+    volume_min_sinal: float,
+) -> list[str]:
+    """Bloco de 2–3 linhas do resumo: pergunta, chance e (se mexeu) quem ganha na bolsa."""
+    x = grupo[0]
+    linhas = [f"{emoji} <b>{f.esc(_titulo(grupo))}</b>"]
     if len(grupo) == 1:
-        x = grupo[0]
-        var = f" ({f.pp(x.var_24h)})" if x.var_24h is not None else ""
-        return f"{emoji} {f.esc(_rotulo_grupo(grupo))}: {f.prob(x.prob)}{var}{vigia}"
-    itens = " | ".join(f"{f.esc(f.encurtar(x.item or x.pergunta, 22))}: {f.prob(x.prob)}" for x in grupo[:2])
-    return f"{emoji} {f.esc(_rotulo_grupo(grupo))} — {itens}{vigia}"
+        linhas.append(f"{f.prob(x.prob)} · {seta_var(x.var_24h)}")
+    else:
+        itens = " · ".join(
+            f"{f.esc(f.encurtar(m.item or m.pergunta, 22))} {f.prob(m.prob)}" for m in grupo[:3]
+        )
+        linhas.append(itens)
+    alertas = []
+    if sum(m.volume for m in grupo) < volume_min_sinal:
+        alertas.append("👁️ pouco volume, só observando")
+    if risco := _risco(con, grupo):
+        alertas.append(risco)
+    if len(grupo) == 1 and x.var_24h is not None and abs(x.var_24h) >= MOVIMENTO_MIN:
+        j = jogada.montar(con, cfg, x.tema, 1 if x.var_24h > 0 else -1, x.polaridade, x.id)
+        if txt := jogada.linhas(j, compacta=True):
+            linhas.append(f"↳ {txt[0]}")
+    if alertas:
+        linhas.append(" · ".join(alertas))
+    return linhas
 
 
-def linhas_tema(con: sqlite3.Connection, cfg: Config, chave: str, agora: datetime, maximo: int) -> list[str]:
+def blocos_tema(con: sqlite3.Connection, cfg: Config, chave: str, agora: datetime, maximo: int) -> list[str]:
     tema = cfg.temas[chave]
     filtros = cfg.regras.get("filtros", {})
     minimo = filtros.get("volume_min_exibir_usd", 0)
     linhas = [x for x in ativos(con, agora, tema=chave) if x.volume >= minimo and not x.palavras_ditas]
     grupos = agrupar_por_evento(linhas)[:maximo]
     return [
-        linha_grupo(g, tema.get("emoji", "•"), filtros.get("volume_min_sinal_usd", 0), con) for g in grupos
+        "\n".join(bloco_grupo(con, cfg, g, tema.get("emoji", "•"), filtros.get("volume_min_sinal_usd", 0)))
+        for g in grupos
     ]
+
+
+# compatibilidade: telas antigas pediam uma linha por grupo
+linhas_tema = blocos_tema
 
 
 def resumo_diario(
@@ -67,32 +105,42 @@ def resumo_diario(
     hoje: list[str] | None = None,
 ) -> str:
     por_tema = cfg.regras.get("filtros", {}).get("mercados_por_tema_resumo", 2)
-    partes = [f"🗓️ <b>{f.data(agora)} — Mercados de previsão</b>"]
+    partes = [f"☀️ <b>Resumo de {f.data(agora)}</b>"]
+
+    partes.append("\n🎯 <b>PARA OPERAR</b>")
+    if sinais_acionaveis:
+        partes.extend(sinais_acionaveis)
+    else:
+        partes.append("Nada para operar agora ⏸️ (quando houver, chega na hora como 🚨/🔔)")
+
+    partes.append("\n📊 <b>POLYMARKET — O QUE MUDOU</b>")
+    blocos = []
     for chave in cfg.temas_ligados():
         if chave == "balancos_cripto":
             continue
-        partes.extend(linhas_tema(con, cfg, chave, agora, por_tema))
-    if len(partes) == 1:
-        partes.append("Nenhum mercado dos temas acima do volume mínimo.")
+        blocos.extend(blocos_tema(con, cfg, chave, agora, por_tema))
+    partes.append("\n\n".join(blocos) if blocos else "Nenhum mercado dos temas acima do volume mínimo.")
+
+    partes.append("\n📅 <b>HOJE</b>")
+    partes.append("; ".join(hoje) if hoje else "Nada na agenda.")
     partes.extend(balancos)
+
+    extras = []
     if n_vencendo:
-        partes.append(
-            f"⏳ Vencendo em até {cfg.regras.get('prazos', {}).get('dias_vencendo', 3)} dias: "
-            f"{n_vencendo} mercado(s) — /prazos"
-        )
+        dias = cfg.regras.get("prazos", {}).get("dias_vencendo", 3)
+        extras.append(f"⏳ {n_vencendo} mercado(s) vencem em até {dias} dias — /prazos")
     if n_novos:
-        partes.append(f"🆕 Mercados novos (24 h): {n_novos} — /novos")
-    partes.append("📅 Hoje: " + ("; ".join(hoje) if hoje else "—"))
-    if sinais_acionaveis:
-        partes.append("🎯 Sinais acionáveis: " + "; ".join(sinais_acionaveis))
-    else:
-        partes.append("🎯 Sinais acionáveis: nenhum ⏸️")
-    partes.append(placar)
-    for texto in informativos or []:
-        partes.append(f"📋 {texto}")
+        extras.append(f"🆕 {n_novos} mercado(s) novo(s) — /novos")
+    if informativos:
+        extras.append("👀 Movimentos que não viraram operação:")
+        extras.extend(f"• {t}" for t in informativos[:6])
+    extras.append(placar)
     for fonte, estado in fontes.items():
         if estado != "ok":
-            partes.append(f"⚠️ Fonte {fonte}: {estado}")
+            extras.append(f"⚠️ Fonte {fonte}: {estado}")
+    partes.append("")
+    partes.extend(extras)
+    partes.append(f"\n{LEGENDA}")
     return "\n".join(partes)
 
 
@@ -101,35 +149,51 @@ def texto_tema(con: sqlite3.Connection, cfg: Config, chave: str, agora: datetime
     cabecalho = f"{tema.get('emoji', '')} <b>{f.esc(tema['nome'])}</b>"
     if not tema.get("ligado", True):
         return cabecalho + "\n⏸️ Tema desligado."
+    partes = [cabecalho]
+    leitura = tema.get("leitura") or {}
+
+    # 1) a regra do tema: o que fazer se a chance sobe / cai
+    j_sobe = jogada.montar(None, cfg, chave, 1)
+    if leitura.get("sobe"):
+        partes.append(f"\n📈 <b>Se a chance SOBE</b>: {f.esc(leitura['sobe'])}")
+        partes.extend(jogada.linhas(j_sobe) or ["(sem ativo com sentido definido; espera a calibração)"])
+    if leitura.get("cai"):
+        partes.append(f"\n📉 <b>Se a chance CAI</b>: {f.esc(leitura['cai'])}")
+        partes.extend(jogada.linhas(jogada.montar(None, cfg, chave, -1)) or ["—"])
+
+    # 2) os mercados
     linhas = ativos(con, agora, tema=chave)
     if not linhas:
-        return cabecalho + "\nNenhum mercado aberto encontrado na última coleta."
-    partes = [cabecalho]
-    for grupo in agrupar_por_evento(linhas)[:8]:
+        partes.append("\nNenhum mercado aberto encontrado na última coleta.")
+        return "\n".join(partes)
+    partes.append("\n━━━━━━━━━━")
+    for n, grupo in enumerate(agrupar_por_evento(linhas)[:6], start=1):
         x = grupo[0]
-        titulo = f.esc(_rotulo_grupo(grupo))
+        titulo = f.esc(_titulo(grupo, 80))
         link = f'<a href="{x.link}">{titulo}</a>' if x.link else titulo
-        prazo = f"até {f.data(x.fim)}" if x.fim else "sem prazo"
-        vol = f.volume(sum(m.volume for m in grupo))
-        aviso = " 🔴 palavras ditas (nunca gera sinal)" if x.palavras_ditas else ""
-        partes.append(f"\n• {link}{aviso}\n  {prazo} | vol. {vol}")
-        nota = manipulacao.ler(con, x.id)
+        partes.append(f"\n<b>{n}.</b> {link}")
+        if x.palavras_ditas:
+            partes.append("🔴 aposta em palavras ditas: nunca gera sinal")
+        if len(grupo) == 1:
+            partes.append(f"Chance: <b>{f.prob(x.prob)}</b> · {seta_var(x.var_24h)}")
+        else:
+            for m in grupo[:4]:
+                partes.append(f"• {f.esc(f.encurtar(m.item or m.pergunta, 30))}: <b>{f.prob(m.prob)}</b>")
+        if len(grupo) == 1 and x.polaridade == -1:
+            partes.append("🔄 Pergunta ao contrário do tema: aqui, chance subindo = jogada do 📉")
+        elif len(grupo) == 1 and x.polaridade == 0:
+            partes.append("❔ Pergunta sem relação clara com o tema: sem jogada automática")
+        j = jogada.montar(con, cfg, chave, 1, x.polaridade, x.id)
+        for m in j.medidos:
+            partes.append(f"📏 Medido: {m}")
+        prazo = f"vence {f.data(x.fim)}" if x.fim else "sem prazo"
+        detalhes = [prazo, f"volume {f.volume(sum(m.volume for m in grupo))}"]
         kal = con.execute("SELECT prob FROM kalshi_pares WHERE mercado_id = ?", (x.id,)).fetchone()
-        extras = []
-        if nota:
-            extras.append(f"🕵️ {nota.texto}")
         if kal and kal["prob"] is not None:
-            extras.append(f"Kalshi {f.prob(kal['prob'])}")
-        if extras:
-            partes.append("  " + " | ".join(extras))
-        for m in grupo[:4]:
-            nome = f.esc(f.encurtar(m.item, 30)) + ": " if len(grupo) > 1 and m.item else ""
-            var = f" ({f.pp(m.var_24h)} em 24 h)" if m.var_24h is not None else ""
-            partes.append(f"  {nome}{f.prob(m.prob)}{var}")
-    ligados = cfg.ativos_do_tema(chave)
-    if ligados:
-        seta = {1: "🔺", -1: "🔻", 0: "❔"}
-        txt = " ".join(f"{t.removesuffix('.SA')}{seta.get(s, '❔')}" for t, s in ligados.items())
-        partes.append(f"\n🔗 Ativos (se a prob. sobe): {txt}")
-    partes.append("👁️ = volume abaixo do mínimo para sinal; só monitorado.")
+            detalhes.append(f"Kalshi {f.prob(kal['prob'])}")
+        partes.append(" · ".join(detalhes))
+        nota = manipulacao.ler(con, x.id)
+        if nota and nota.nota != "🟢":
+            partes.append(f"🕵️ {nota.texto}")
+    partes.append(f"\n{LEGENDA}")
     return "\n".join(partes)

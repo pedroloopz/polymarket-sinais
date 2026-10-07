@@ -109,3 +109,12 @@ baleias:                          # módulo 6
   top: 20
   alerta_minimo_usd: 5000
   alerta_aumento_pct: 20
+
+# Tradução das perguntas da Polymarket para o português (precisa do Secret ANTHROPIC_API_KEY).
+# Cada mercado é traduzido uma vez só; o custo é de centavos por mês.
+traducao:
+  ligada: true
+  modelo: "claude-opus-5-5"
+  effort: "low"
+  lote: 20
+  max_por_execucao: 60

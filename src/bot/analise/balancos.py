@@ -78,7 +78,7 @@ def _mercado_da_empresa(nomes: list[str], linhas: list[Linha]) -> Linha | None:
     for linha in linhas:
         if linha.palavras_ditas:
             continue
-        texto = linha.pergunta.lower()
+        texto = (linha.original or linha.pergunta).lower()
         if "earnings" in texto and any(re.search(rf"\b{re.escape(n)}\b", texto) for n in nomes):
             return linha
     return None
