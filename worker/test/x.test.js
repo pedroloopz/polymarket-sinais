@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
-import { comandoX, gerar, intent, linhaPosicao, modeloFixo, pedidoApi, rotinaX, textoTelegram, validar } from "../src/x.js";
+import { comandoX, formato, gerar, intent, linhaPosicao, modeloFixo, pedidoApi, rotinaX, textoTelegram, validar } from "../src/x.js";
 
 function kvFalso(inicial = {}) {
   const dados = Object.fromEntries(Object.entries(inicial).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]));
@@ -72,7 +72,7 @@ test("linha de posição: só ativos ligados e com liquidez", () => {
 });
 
 test("gera 2 versões, acrescenta a posição e respeita 280", async () => {
-  const c = clienteFalso([{ posts: [{ texto: "A guerra acabou pro mercado, porra. Polymarket dá 78%.\n🟢 mercado bom", gancho: "contraste" }, { texto: "16 p.p. em 24 h e a TV dormindo.\n🟢 mercado bom", gancho: "numero_choque" }] }]);
+  const c = clienteFalso([{ posts: [{ texto: "Eu vejo: a guerra acabou para o mercado. O dinheiro dá 78% à paz.\n🟢 mercado bom", gancho: "contraste", estudo: "" }, { texto: "16 p.p. em 24 h e eu sou o único olhando, a TV dormindo.\n🟢 mercado bom", gancho: "numero_choque", estudo: "" }] }]);
   const posts = await gerar({ env: ENV, tipo: "diario", dados: DADOS, posLinha: "📌 Sem posição.", perfil: "@pedroloopz", cfg: {}, criarCliente: c.criar });
   assert.equal(posts.length, 2);
   assert.ok(posts.every((p) => p.texto.endsWith("📌 Sem posição.") && p.texto.length <= 280));
@@ -82,25 +82,26 @@ test("gera 2 versões, acrescenta a posição e respeita 280", async () => {
   assert.deepEqual(req.betas, ["server-side-fallback-2026-07-01"]);
   assert.equal(req.output_config.format.type, "json_schema");
   assert.match(req.system, /@pedroloopz/);
-  assert.match(req.system, /NUNCA contra pessoas/);
+  assert.match(req.system, /Nenhum ataque a pessoas/);
 });
 
 test("post inválido pede refação; recusa cai no modelo fixo", async () => {
-  const c = clienteFalso([{ posts: [{ texto: "Compre XLE já, caralho", gancho: "denuncia" }] }, { posts: [{ texto: "O mercado virou, porra.\n🔴 mercado ruim", gancho: "contraste" }] }]);
+  const c = clienteFalso([{ posts: [{ texto: "Compre XLE já", gancho: "denuncia" }] }, { posts: [{ texto: "Eu avisei: a maré do mercado virou.\n🔴 mercado ruim", gancho: "contraste", estudo: "" }] }]);
   const posts = await gerar({ env: ENV, tipo: "diario", dados: DADOS, posLinha: "📌 Sem posição.", perfil: "@p", cfg: {}, criarCliente: c.criar });
   assert.equal(c.chamadas.length, 2);
   assert.match(c.chamadas[1].messages.at(-1).content, /recomendação proibida/);
-  assert.ok(posts[0].texto.startsWith("O mercado virou"));
+  assert.ok(posts[0].texto.startsWith("Eu avisei"));
   const r = clienteFalso([{ refusal: true }]);
   const fixo = await gerar({ env: ENV, tipo: "diario", dados: DADOS, posLinha: "📌 Sem posição.", perfil: "@p", cfg: {}, criarCliente: r.criar });
-  assert.match(fixo[0].texto, /78% na Polymarket/);
+  assert.match(fixo[0].texto, /o mercado dá 78%/);
+  assert.ok(!fixo[0].texto.includes("?"));
 });
 
 test("sem chave: modelo fixo, sem chamar a API", async () => {
   const posts = await gerar({ env: { ANTHROPIC_API_KEY: "-" }, tipo: "diario", dados: DADOS, posLinha: "📌 Sem posição.", perfil: "@p", cfg: {} });
   assert.match(posts[0].texto, /US x Iran ceasefire/);
   assert.equal(validar(posts[0].texto.split("\n\n")[0]).length, 0);
-  assert.match(modeloFixo("saida", { ticker: "PETR4.SA", resultado_txt: "+3,2%" }, "📌 Sem posição.")[0].texto, /Zerei PETR4/);
+  assert.match(modeloFixo("saida", { ticker: "PETR4.SA", resultado_txt: "+3,2%" }, "📌 Sem posição.")[0].texto, /Eu zerei PETR4/);
 });
 
 test("intent do X com texto codificado", () => {
@@ -173,8 +174,8 @@ test("estudo só da lista, com a referência escrita", () => {
 
 test("rascunho no Telegram traz a fonte do estudo para responder no post", async () => {
   const c = clienteFalso([{ posts: [
-    { texto: "Todo mundo confia na pesquisa. O dinheiro discorda: em 74% das vezes o mercado chegou mais perto (Berg et al., 2008).\n🟢 mercado bom", gancho: "estudo", estudo: "berg2008_74" },
-    { texto: "16 p.p. em 24 h e a TV dormindo.\n🟢 mercado bom", gancho: "numero_choque", estudo: "" },
+    { texto: "Todo mundo confia na pesquisa. Eu confio no dinheiro: em 74% das vezes o mercado chegou mais perto (Berg et al., 2008).\n🟢 mercado bom", gancho: "estudo", estudo: "berg2008_74" },
+    { texto: "16 p.p. em 24 h e eu vendo a TV dormir.\n🟢 mercado bom", gancho: "numero_choque", estudo: "" },
   ] }]);
   const posts = await gerar({ env: ENV, tipo: "diario", dados: { ...DADOS, estudos: ESTUDOS }, posLinha: "📌 Sem posição.", perfil: "@p", cfg: {}, criarCliente: c.criar });
   assert.equal(posts.length, 2);
@@ -182,4 +183,35 @@ test("rascunho no Telegram traz a fonte do estudo para responder no post", async
   const txt = textoTelegram("diario", posts, "", ESTUDOS);
   assert.match(txt, /🔗 Fonte \(responda no próprio post\): Berg, Nelson e Rietz, 2008 — https:\/\/iemweb/);
   assert.equal((txt.match(/🔗/g) || []).length, 1);
+});
+
+test("primeira pessoa, sem pergunta e post longo no X Premium", async () => {
+  const R = { primeiraPessoa: true, semPergunta: true };
+  assert.deepEqual(validar("Eu olhei o livro e o mercado dá 31%.", 280, [], "", R), []);
+  assert.ok(validar("O Fed vai cortar? O mercado dá 31%.", 280, [], "", R).some((e) => e.includes("pergunta")));
+  assert.ok(validar("O mercado dá 31%.", 280, [], "", R).some((e) => e.includes("primeira pessoa")));
+  assert.ok(validar("Eu e a gente sabemos.", 280, [], "", R).some((e) => e.includes("SINGULAR")));
+  assert.ok(validar("Eu acho.", 1500, [], "", { minimo: 500 }).some((e) => e.includes("curto demais")));
+  assert.deepEqual(formato("diario", { premium: true }), { limite: 1500, minimo: 500, emojis: 4, longo: true });
+  assert.equal(formato("diario", {}).limite, 280);
+  assert.equal(formato("diario", { premium: true, tamanho_max: 9000 }).limite, 1800);
+  const longo = "Eu passei o dia ouvindo que o Fed corta. ".repeat(14) + "\n🟢 mercado bom";
+  const c = clienteFalso([{ posts: [{ texto: longo, gancho: "lacuna", estudo: "" }] }]);
+  const posts = await gerar({ env: ENV, tipo: "diario", dados: DADOS, posLinha: "📌 Sem posição.", perfil: "@p", cfg: { premium: true }, criarCliente: c.criar });
+  assert.ok(posts[0].texto.length > 500);
+  assert.match(c.chamadas[0].system, /FORMATO LONGO/);
+  assert.match(c.chamadas[0].system, /primeira pessoa do singular/);
+});
+
+test("tom literário: sem palavrão e sem nome de plataforma; links fora do pedido", async () => {
+  const R = { primeiraPessoa: true, semPalavrao: true, semPlataforma: true };
+  assert.deepEqual(validar("Eu vejo a maré virar antes do trovão.", 1500, [], "", R), []);
+  assert.ok(validar("Eu vejo o mercado virar, porra.", 1500, [], "", R).some((e) => e.includes("palavrão")));
+  assert.ok(validar("Eu vejo 78% na Polymarket.", 1500, [], "", R).some((e) => e.includes("plataforma")));
+  assert.deepEqual(validar("Eu vejo a computação mudar o mundo.", 1500, [], "", R), []); // "cu" só como palavra inteira
+  const c = clienteFalso([{ posts: [{ texto: "Eu vejo a paz com 78%.\n🟢 mercado bom", gancho: "contraste", estudo: "" }] }]);
+  await gerar({ env: ENV, tipo: "diario", dados: { destaques: [{ ...DADOS.destaques[0], link: "https://polymarket.com/event/x" }] }, posLinha: "📌 Sem posição.", perfil: "@p", cfg: {}, criarCliente: c.criar });
+  assert.ok(!c.chamadas[0].messages[0].content.includes("polymarket.com"));
+  assert.match(c.chamadas[0].system, /literária, romântica, poderosa e imponente/);
+  assert.match(c.chamadas[0].system, /SEM PALAVRÃO/);
 });

@@ -134,13 +134,15 @@ O bot **não publica sozinho** (sem API paga do X): ele manda o **rascunho no Te
 
 Botões em cada rascunho: **✅ Abrir no X** (texto já preenchido) · **🔄 Outra versão** · **🔥 Mais forte** · **🧊 Mais sóbrio**.
 
-**Tom:** briguento, toma posição, xinga — **o mercado e a narrativa, nunca pessoas** (injúria/difamação; em período eleitoral, risco de crime eleitoral). Política: veredito só sobre o mercado.
+**Tom:** literário, romântico, poderoso e imponente, em primeira pessoa; toma posição contra **a narrativa, nunca pessoas** (injúria/difamação; em período eleitoral, risco de crime eleitoral). Sem palavrão e sem citar Polymarket/Kalshi: o post fala do sentimento do mercado. Política: veredito só sobre o mercado.
 
-**Travas no código (não dependem da IA):** nada de "compre/venda/entre/preço-alvo/stop" (Resolução CVM 20/2021); ≤ 280 caracteres; ≤ 2 emojis; a linha "📌 Minha posição … Não é recomendação." é escrita pelo código a partir das posições reais; ativo com volume < R$/US$ 5 mi/dia nunca entra (anti pump-and-dump, Resolução CVM 62/2022); post de saída marcado como **obrigatório** se você zerar < 24 h depois de um post sobre o ativo.
+**Travas no código (não dependem da IA):** nada de "compre/venda/entre/preço-alvo/stop" (Resolução CVM 20/2021); sem palavrão, sem nome de plataforma, sem "?" e em primeira pessoa; tamanho e emojis conforme o formato (curto ≤ 280 / longo 500–1.500); a linha "📌 Minha posição … Não é recomendação." é escrita pelo código a partir das posições reais; ativo com volume < R$/US$ 5 mi/dia nunca entra (anti pump-and-dump, Resolução CVM 62/2022); post de saída marcado como **obrigatório** se você zerar < 24 h depois de um post sobre o ativo.
 
 **Posições:** `/posicao comprado PETR4` (preço do momento, ou informe: `/posicao vendido XLE 90,10`), `/zerar PETR4`, `/posicoes`. Opcional: as posições do bot **alerta-ema** entram sozinhas com o Secret `ALERTA_EMA_TOKEN` (token fine-grained do GitHub, só leitura de *Contents* no alerta-ema). Só ticker, lado e data aparecem; quantidade nunca.
 
 **Aprender com o engajamento:** responda ao rascunho com `/engajamento <link> <curtidas> <reposts> A` (ou B). Domingo, o placar mostra o melhor formato, gancho e horário, e os posts campeões viram exemplo para os próximos.
+
+**Formato:** X Premium (`config/regras.yaml` → `x.premium`): posts de 500 a 1.500 caracteres, com o gancho nas primeiras ~280 letras (antes do "Mostrar mais"). Sempre na primeira pessoa do singular e sem perguntas; o código recusa post com "?", sem "eu/meu/minha" ou com "nós/a gente". Cada destaque leva quem ganha e quem perde na bolsa.
 
 **Estudos e ganchos:** as aberturas seguem técnicas de atenção com base em pesquisa (lacuna de curiosidade, emoção de alta ativação, palavra negativa concreta, a narrativa como "outro lado"). O post só cita estudo da lista fechada em `config/estudos.yaml`; citação fora da lista é recusada pelo código. Quando o post usa um estudo, o rascunho no Telegram traz o link da fonte para você responder no próprio post.
 

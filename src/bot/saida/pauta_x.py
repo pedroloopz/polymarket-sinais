@@ -14,7 +14,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 from bot import formato as f
-from bot.analise import manipulacao
+from bot.analise import jogada, manipulacao
 from bot.analise.mercados import ativos
 from bot.config import Config
 from bot.db import iso
@@ -41,9 +41,21 @@ def destaques(con: sqlite3.Connection, cfg: Config, agora: datetime, n: int = 5)
             "volume_usd": round(x.volume), "kalshi": round(kal["prob"], 4) if kal and kal["prob"] is not None else None,
             "manipulacao": nota.nota if nota else None, "criterios_manipulacao": nota.criterios if nota else [],
             "ativos_ligados": [t.removesuffix(".SA") for t in cfg.ativos_do_tema(x.tema)][:8],
+            **_ganha_perde(con, cfg, x),
             "link": x.link,
         })  # fmt: skip
     return saida
+
+
+def _ganha_perde(con: sqlite3.Connection, cfg: Config, x) -> dict:
+    """Quem ganha e quem perde na bolsa com o movimento de 24 h (já corrigido pela polaridade)."""
+    j = jogada.montar(con, cfg, x.tema, 1 if x.var_24h >= 0 else -1, x.polaridade, x.id)
+    return {
+        "quem_ganha": [f"{s}: {', '.join(ts)}" for s, ts in j.longs],
+        "quem_perde": [f"{s}: {', '.join(ts)}" for s, ts in j.shorts],
+        "leitura_tema": j.por_que,
+        "efeito_medido": j.medidos,
+    }
 
 
 def grafico(con: sqlite3.Connection, destaque: dict, agora: datetime, perfil: str) -> str | None:
@@ -88,7 +100,10 @@ def grafico(con: sqlite3.Connection, destaque: dict, agora: datetime, perfil: st
     ax.grid(axis="y", color="#333", linewidth=0.6)
     titulo = f.encurtar(destaque["pergunta"], 70)
     ax.set_title(
-        f"{titulo}\nPolymarket — agora {f.prob(destaque['prob'])}", color="white", fontsize=11, loc="left"
+        f"{titulo}\nSentimento do mercado — agora {f.prob(destaque['prob'])}",
+        color="white",
+        fontsize=11,
+        loc="left",
     )
     fig.text(0.98, 0.03, f"Termômetro do Caos · {perfil}", color="#888", fontsize=10, ha="right")
     fig.text(0.5, 0.5, perfil, color="white", fontsize=40, ha="center", va="center", alpha=0.06, rotation=20)
@@ -171,7 +186,10 @@ def montar(
         "x": {
             "horarios": rx.get("horarios", ["08:30", "10:20", "18:30"]),
             "modelo": rx.get("modelo", "claude-opus-5-5"),
-            "effort": rx.get("effort", "low"),
+            "effort": rx.get("effort", "medium"),
+            "premium": bool(rx.get("premium", False)),
+            "tamanho_min": rx.get("tamanho_min", 500),
+            "tamanho_max": rx.get("tamanho_max", 1500),
             "virada_z_min": rx.get("virada_z_min", 3),
         },
     }

@@ -97,7 +97,10 @@ x:                                # módulo 14 — posts para o X (Fase 4)
   perfil: "@pedroloopz"           # marca d'água dos gráficos
   horarios: ["08:30", "10:20", "18:30"]   # rascunhos do Termômetro do Caos (Brasília)
   modelo: "claude-opus-5-5"       # Claude que escreve; "claude-sonnet-5-5" custa metade
-  effort: "low"                   # textos curtos: esforço baixo basta e sai mais barato
+  effort: "medium"                # post longo e bem escrito pede mais raciocínio que "low"
+  premium: true                   # X Premium: post longo (o X aceita até 25.000 caracteres)
+  tamanho_min: 500                # caracteres por post (diário, placar, saída)
+  tamanho_max: 1500               # 2 versões precisam caber numa mensagem do Telegram (máx. 1.800)
   virada_z_min: 3                 # alerta de virada quando |z| ≥ 3
   fio_min_pp: 15                  # fio quando um mercado líquido anda ≥ 15 p.p. em 24 h
   liquidez_min_diaria: 5000000    # ativo com menos que isso (volume financeiro/dia) nunca entra em post
