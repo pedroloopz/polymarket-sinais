@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from bot import db, extras
+from bot import formato as f
 from bot.analise import acompanhamento, balancos, calibracao, novos, prazos, protecao, sinais
-from bot.coleta import precos
+from bot.coleta import precos, traducao
 from bot.coleta.coletor import coletar
 from bot.coleta.polymarket_clob import Clob
 from bot.coleta.polymarket_gamma import Gamma
@@ -92,6 +93,7 @@ def tarefa_coletar(ctx: Contexto) -> dict[str, str]:
         rt, worker_vivo = extras.ingerir_worker(ctx)
         res = coletar(con, cfg, Gamma(ctx.http), Clob(ctx.http), precos.ultimas_cotacoes, agora)
         fontes = res.fontes
+        fontes["Tradução (Claude)"] = traducao.traduzir(con, cfg, agora)[1]
 
         if not res.primeira_coleta:
             lista = novos.pendentes(con, cfg, agora)
@@ -145,7 +147,7 @@ def _rodar_sinais(ctx: Contexto, worker_vivo: bool = False, excluir: set[str] | 
             registrar(con, montado.sinal)
             texto = montado.texto
             if montado.sinal.urgencia == "📋":  # informativo: uma linha no resumo diário
-                texto = sinais.linha_curta(cfg, montado.sinal, c.mercado["pergunta"])
+                texto = sinais.linha_curta(cfg, montado.sinal, montado.sinal.detalhes["pergunta"])
             despachar(con, ctx.tg, texto, montado.sinal.urgencia, cfg.regras, agora)
         info(_log, "sinais avaliados", candidatos=len(candidatos), pausado=pausado)
     except Exception as erro:
@@ -215,10 +217,18 @@ def _acionaveis_24h(ctx: Contexto) -> list[str]:
         """SELECT * FROM sinais WHERE acionavel = 1 AND ts >= ? ORDER BY ts""",
         (db.iso(ctx.agora - timedelta(hours=24)),),
     ).fetchall()
-    return [
-        f"{r['ativo'].removesuffix('.SA')} {'🔺' if r['sentido'] > 0 else '🔻'} {r['semaforo'] or ''} ({r['status']})"
-        for r in linhas
-    ]
+    status = {"aberto": "⏳ em aberto", "alvo": "✅ bateu o alvo", "stop": "🛑 stop", "tempo": "⏱️ prazo acabou",
+              "invalidado": "❌ invalidado", "parcial": "🎯 alvo parcial"}  # fmt: skip
+    saida = []
+    for r in linhas:
+        tema = ctx.cfg.temas.get(r["tema"], {})
+        lado = "🟢 LONG" if r["sentido"] > 0 else "🔴 SHORT"
+        res = f" {f.pct(r['resultado'], 1, sinal=True)}" if r["resultado"] is not None else ""
+        saida.append(
+            f"{lado} <b>{r['ativo'].removesuffix('.SA')}</b> · {tema.get('emoji', '')} {f.esc(tema.get('nome', ''))} "
+            f"· {status.get(r['status'] or '', r['status'] or '')}{res}"
+        )
+    return saida
 
 
 def tarefa_resumo(ctx: Contexto) -> str:

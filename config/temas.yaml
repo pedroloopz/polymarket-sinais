@@ -5,6 +5,9 @@
 # - exigir: a pergunta/título precisa conter TODOS estes termos (opcional).
 # - excluir: descarta se contiver algum destes termos.
 # - comando: nome do comando no Telegram (/ira, /fed...). Comandos do Telegram não aceitam acento.
+# - evento: o que o "Sim" significa para o tema (a tradução usa isso para saber se a pergunta é
+#   a favor ou contra o tema; ex.: "EUA atacam o Irã?" é contra o tema "paz").
+# - leitura: o que a chance subir/cair significa para o mercado, em uma linha.
 # - semaforo: indicadores do semáforo (módulo 4) e o sentido esperado quando a prob. SOBE.
 # - palavras_ditas: mercados do tipo "vai dizer X na teleconferência" — nunca geram sinal (módulo 5).
 # Os ativos ligados a cada tema ficam em ativos.yaml.
@@ -14,6 +17,8 @@ temas:
     nome: "Irã / Hormuz (paz)"
     emoji: "🇮🇷"
     comando: ira
+    evento: "acordo, cessar-fogo ou paz entre EUA/Israel e Irã; Hormuz aberto"
+    leitura: {sobe: "paz mais provável → petróleo mais barato e menos medo", cai: "guerra mais provável → petróleo mais caro e mais medo"}
     ligado: true
     semaforo: {BZ=F: -1, ^VIX: -1}
     buscas: ["Iran ceasefire", "Iran deal", "Strait of Hormuz", "Iran sanctions", "Iran blockade"]
@@ -24,6 +29,8 @@ temas:
     nome: "Mar Vermelho (fechamento)"
     emoji: "🇾🇪"
     comando: mar
+    evento: "ataques dos houthis ou fechamento do Mar Vermelho"
+    leitura: {sobe: "rota fechada → frete e petróleo sobem", cai: "rota segura → frete e petróleo caem"}
     ligado: true
     semaforo: {BZ=F: 1, ^VIX: 1}
     buscas: ["Houthi", "Red Sea", "Bab el-Mandeb", "Yemen ceasefire"]
@@ -34,6 +41,8 @@ temas:
     nome: "China–Taiwan (escalada)"
     emoji: "🇹🇼"
     comando: taiwan
+    evento: "escalada, bloqueio ou invasão da China em Taiwan"
+    leitura: {sobe: "risco de guerra → chips caem, dólar e medo sobem", cai: "tensão menor → chips sobem, medo cai"}
     ligado: true
     semaforo: {^VIX: 1, DX-Y.NYB: 1}
     buscas: ["China invade Taiwan", "Taiwan blockade", "China Taiwan"]
@@ -44,6 +53,8 @@ temas:
     nome: "Rússia–Ucrânia (paz)"
     emoji: "🇺🇦"
     comando: ucrania
+    evento: "cessar-fogo ou acordo de paz Rússia–Ucrânia"
+    leitura: {sobe: "paz mais provável → petróleo e defesa caem", cai: "guerra mais longa → petróleo e defesa sobem"}
     ligado: true
     semaforo: {BZ=F: -1, ^VIX: -1}
     buscas: ["Russia Ukraine ceasefire", "Ukraine peace deal"]
@@ -54,6 +65,8 @@ temas:
     nome: "Fed (corte de juros)"
     emoji: "🏦"
     comando: fed
+    evento: "o Fed cortar os juros"
+    leitura: {sobe: "juros menores → bolsa sobe, dólar cai", cai: "juros maiores por mais tempo → bolsa cai, dólar sobe"}
     ligado: true
     semaforo: {DX-Y.NYB: -1, ^VIX: -1}
     buscas: ["Fed decision", "Fed rate cut", "FOMC"]
@@ -64,6 +77,8 @@ temas:
     nome: "Eleição 2026"
     emoji: "🇧🇷"
     comando: brasil
+    evento: "vitória de Lula ou do governo na eleição"
+    leitura: {sobe: "efeito ainda não medido (só a calibração dirá)", cai: "efeito ainda não medido (só a calibração dirá)"}
     ligado: true
     semaforo: {}
     buscas: ["Brazil presidential election", "Brazil election", "Lula"]
@@ -74,6 +89,8 @@ temas:
     nome: "Tarifas e comércio"
     emoji: "🇺🇸"
     comando: tarifas
+    evento: "mais tarifas ou guerra comercial"
+    leitura: {sobe: "guerra comercial → exportadoras e bolsa caem, dólar sobe", cai: "alívio comercial → exportadoras sobem, dólar cai"}
     ligado: true
     semaforo: {^VIX: 1, DX-Y.NYB: 1}
     buscas: ["tariffs China", "tariffs Brazil", "trade deal China"]
@@ -84,6 +101,8 @@ temas:
     nome: "Balanços de cripto"
     emoji: "🪙"
     comando: balancos
+    evento: "a empresa bater a estimativa de lucro"
+    leitura: {sobe: "balanço forte esperado → ação tende a subir", cai: "balanço fraco esperado → ação tende a cair"}
     ligado: true
     semaforo: {}
     buscas: ["beat quarterly earnings", "Coinbase earnings", "MicroStrategy earnings", "Strategy earnings",
@@ -98,6 +117,8 @@ temas:
     nome: "Cripto (termômetro)"
     emoji: "₿"
     comando: cripto
+    evento: "o Bitcoin passar do preço indicado"
+    leitura: {sobe: "apetite por risco → cripto sobe", cai: "aversão a risco → cripto cai"}
     ligado: true
     semaforo: {^VIX: -1}
     buscas: ["Bitcoin price", "Bitcoin above"]

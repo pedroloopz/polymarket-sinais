@@ -220,15 +220,14 @@ def test_sinal_acionavel_com_plano_completo(con, cfg):
     assert s.esperado == pytest.approx(-0.024)
     assert s.latencia_s == pytest.approx(600)
     for trecho in (
-        "🚨 SINAL",
-        "🔻 SHORT XLE",
-        "🎯 Alvo: US$",
-        "🛑 Stop: US$",
-        "Ganho/risco",
+        "🚨 <b>OPORTUNIDADE FORTE</b>",
+        "👉 <b>🔴 SHORT XLE</b> (petróleo)",
+        "💡 paz mais provável → petróleo mais barato",
+        "🎯 Alvo US$",
+        "🛑 Stop US$",
         "⏱️ Sair até",
-        "Esperado −2,4% | realizado −0,6%",
-        "Latência do alerta: 10 min",
-        "não recomendação",
+        "costuma andar −2,4%",
+        "não é recomendação",
     ):
         assert trecho in m.texto, trecho
     sid = registrar(con, s)

@@ -24,7 +24,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from bot import formato as f
-from bot.analise import calibracao, manipulacao, risco, semaforo
+from bot.analise import calibracao, jogada, manipulacao, risco, semaforo
+from bot.coleta import traducao
 from bot.config import Config
 from bot.db import de_iso, iso, ler_texto
 from bot.diario.registro import Sinal
@@ -236,7 +237,9 @@ def montar(
     t_min = cfg.regras.get("calibracao", {}).get("t_min", 3.3)
     tema = cfg.temas[c.tema]
 
-    # 1) ativo: calibração confirmada > hipótese
+    # 1) ativo: calibração confirmada > hipótese.
+    # "Sim" contra o tema (ex.: "EUA atacam o Irã?" no tema paz) inverte a hipótese.
+    pol = traducao.polaridade(con, c.mercado["id"])
     pares = calibracao.confirmados(con, c.mercado["id"], t_min)
     calibrado = bool(pares)
     if calibrado:
@@ -250,12 +253,12 @@ def montar(
             alt = (alternativa["ativo"], 1 if alt_esp > 0 else -1)
     else:
         hipoteses = [(t, s) for t, s in cfg.ativos_do_tema(c.tema).items() if s and t in cfg.ativos]
-        if not hipoteses:
+        if not hipoteses or not pol:
             return None
         ativo, s = hipoteses[0]
-        sentido = s * c.sentido_prob
+        sentido = s * c.sentido_prob * pol
         beta = defasagem = esperado = None
-        alt = (hipoteses[1][0], hipoteses[1][1] * c.sentido_prob) if len(hipoteses) > 1 else None
+        alt = (hipoteses[1][0], hipoteses[1][1] * c.sentido_prob * pol) if len(hipoteses) > 1 else None
 
     entrada = preco_em(con, ativo, agora, janela_h=72)  # fora do pregão: último fechamento
     if not entrada:
@@ -338,13 +341,13 @@ def montar(
         stop=plano.stop if plano else None, alvo=plano.alvo if plano else None, semaforo=cor,
         manipulacao=nota.nota if nota else None, urgencia=urgencia, acionavel=acionavel, latencia_s=latencia,
         detalhes={"motivos": motivos, "notas": c.notas, "alternativa": alt, "semaforo": detalhe_sem,
-                  "pergunta": c.mercado["pergunta"]},
+                  "pergunta": traducao.pergunta_pt(con, c.mercado["id"], c.mercado["pergunta"])},
         confianca=confianca, base_ts=c.base_ts, p_base=c.p_base, p_sinal=c.p_agora, z=c.z,
         alvo_parcial=plano.alvo_parcial if plano else None,
         stop_tempo=plano.stop_tempo if plano else None, esperado=esperado, realizado=realizado,
         defasagem_min=defasagem, beta_10pp=beta, quantidade=plano.quantidade if plano else None,
     )  # fmt: skip
-    texto = mensagem(cfg, c, sinal, plano, moeda, alt, detalhe_sem, motivos, nota.texto if nota else "—")
+    texto = mensagem(cfg, c, sinal, plano, moeda, alt, detalhe_sem, motivos, nota.nota if nota else "—", pol)
     return SinalMontado(sinal, texto, acionavel)
 
 
@@ -352,7 +355,14 @@ def montar(
 
 
 def _seta(sentido: int) -> str:
-    return "🔺 LONG" if sentido > 0 else "🔻 SHORT"
+    return "🟢 LONG" if sentido > 0 else "🔴 SHORT"
+
+
+def _duracao(minutos: float) -> str:
+    return f"{f.numero(minutos / 60, 0)} h" if minutos >= 90 else f"{f.numero(minutos, 0)} min"
+
+
+CONFIANCA = {"🟢": "🟢 alta", "🟡": "🟡 média", "🔴": "🔴 baixa"}
 
 
 def mensagem(
@@ -365,62 +375,69 @@ def mensagem(
     detalhe_sem: str,
     motivos: list[str],
     manip: str = "—",
+    polaridade: int = 1,
 ) -> str:
+    """Cartão do sinal: o que aconteceu, o que fazer, por quê, preços. Detalhes técnicos ficam no diário."""
     tema = cfg.temas[c.tema]
-    nome = s.ativo.removesuffix(".SA")
+    nome = jogada.nome(s.ativo)
+    setor = (cfg.ativos.get(s.ativo) or {}).get("setor")
+    topo = {"🚨": "🚨 <b>OPORTUNIDADE FORTE</b>", "🔔": "🔔 <b>OPORTUNIDADE</b>"}.get(
+        s.urgencia, "👀 <b>Movimento</b>"
+    )
+    pergunta = (s.detalhes or {}).get("pergunta") or c.mercado["pergunta"]
     minutos = max((s.ts - c.base_ts).total_seconds() / 60, 1)
-    duracao = f"{f.numero(minutos / 60, 0)} h" if minutos >= 90 else f"{f.numero(minutos, 0)} min"
-    topo = "🚨 SINAL" if s.urgencia == "🚨" else ("🔔 SINAL" if s.acionavel else "📋 Informativo")
+    seta = "▲" if c.dp > 0 else "▼"
     linhas = [
-        f"{topo} — {tema.get('emoji', '')} {f.esc(tema['nome'])}",
-        f"{f.esc(f.encurtar(c.mercado['pergunta'], 70))}",
-        f"{f.prob(c.p_base)} → {f.prob(c.p_agora)} ({f.pp(c.dp)}, z = {f.numero(c.z, 1)}) em {duracao}",
-        f"Semáforo: {s.semaforo} {detalhe_sem}",
+        f"{topo} · {tema.get('emoji', '')} {f.esc(tema['nome'])}",
+        f"❓ {f.esc(f.encurtar(pergunta, 90))}",
+        f"📊 Chance: {f.prob(c.p_base)} → <b>{f.prob(c.p_agora)}</b> ({seta} {f.numero(abs(c.dp) * 100, 0)} p.p. em {_duracao(minutos)})",
+        "",
+        f"👉 <b>{_seta(s.sentido)} {nome}</b>" + (f" ({f.esc(setor)})" if setor else ""),
     ]
-    alt_txt = f" (alt.: {_seta(alt[1])} {alt[0].removesuffix('.SA')})" if alt else ""
-    linhas.append(f"{_seta(s.sentido)} {nome}{alt_txt}")
-    if plano:
-        partes = [f"Entrada ~{f.dinheiro(plano.entrada, moeda)}"]
-        if plano.alvo is not None:
-            partes.append(
-                f"🎯 Alvo: {f.dinheiro(plano.alvo, moeda)} (parcial {f.dinheiro(plano.alvo_parcial, moeda)})"
-            )
-        linhas.append(" | ".join(partes))
-        stop = f"🛑 Stop: {f.dinheiro(plano.stop, moeda)}"
-        if plano.ganho_risco is not None:
-            stop += f" | Ganho/risco: {f.numero(plano.ganho_risco, 1)}"
-        if plano.stop_tempo:
-            stop += f" | ⏱️ Sair até {f.hora(plano.stop_tempo)}"
-        linhas.append(stop)
+    efeito = c.sentido_prob * polaridade  # +1: o evento do tema ficou mais provável
+    leitura = (tema.get("leitura") or {}).get("sobe" if efeito > 0 else "cai") if polaridade else None
+    if leitura:
+        linhas.append(f"💡 {f.esc(leitura)}")
     if s.esperado is not None:
-        real = s.realizado or 0.0
         linhas.append(
-            f"Esperado {f.pct(s.esperado, 1, sinal=True)} | realizado {f.pct(real, 1, sinal=True)} "
-            f"→ espaço de {f.pct(s.esperado - real, 1, sinal=True)}"
+            f"📏 Pelo histórico, {nome} costuma andar {f.pct(s.esperado, 1, sinal=True)} com esse movimento"
         )
-        linhas.append(f"Defasagem calibrada: {f.numero(s.defasagem_min, 0, sinal=True)} min")
-    tamanho = f"Tamanho máx.: {f.numero(cfg.regras.get('risco', {}).get('risco_por_operacao_pct', 1), 1)}% do capital"
-    if plano and plano.quantidade is not None:
-        tamanho += f" → {plano.quantidade} un. (≈ {f.dinheiro(plano.valor_moeda, moeda)})"
-    elif not cfg.regras.get("risco", {}).get("capital"):
-        tamanho += " (defina com /capital)"
-    linhas.append(f"{tamanho} | Latência do alerta: {f.numero((s.latencia_s or 0) / 60, 0)} min")
-    linhas.append(f"Confiança: {s.confianca} | 🕵️ Manipulação: {manip}")
-    for nota in c.notas:
-        linhas.append(f"ℹ️ {nota}")
+    if alt:
+        linhas.append(f"Alternativa: {_seta(alt[1])} {jogada.nome(alt[0])}")
+    if plano:
+        linhas.append("")
+        linhas.append(f"💵 Entrada ~{f.dinheiro(plano.entrada, moeda)}")
+        alvo = f"🎯 Alvo {f.dinheiro(plano.alvo, moeda)}" if plano.alvo is not None else "🎯 Alvo: —"
+        linhas.append(f"{alvo} · 🛑 Stop {f.dinheiro(plano.stop, moeda)}")
+        prazo = []
+        if plano.stop_tempo:
+            prazo.append(f"⏱️ Sair até {f.hora(plano.stop_tempo)}")
+        if plano.quantidade is not None:
+            prazo.append(
+                f"tamanho {f.numero(plano.quantidade, 0)} un. (≈ {f.dinheiro(plano.valor_moeda, moeda)})"
+            )
+        elif not cfg.regras.get("risco", {}).get("capital"):
+            prazo.append("tamanho: defina /capital")
+        if prazo:
+            linhas.append(" · ".join(prazo))
+    linhas.append("")
+    linhas.append(f"Confiança {CONFIANCA.get(s.confianca, s.confianca)} · Manipulação {manip}")
     if motivos:
-        linhas.append("Por que não é acionável: " + "; ".join(motivos))
-    linhas.append("⚠️ Sinal de sistema, não recomendação. Registrado no diário.")
+        linhas.append("⛔ Não operar: " + "; ".join(motivos))
+    linhas.append("⚠️ Sinal do sistema, não é recomendação. /sinal mostra o histórico.")
     return "\n".join(linhas)
 
 
 def linha_curta(cfg: Config, s: Sinal, pergunta: str) -> str:
+    """Uma linha para o resumo: movimento → jogada → por que não virou operação."""
     tema = cfg.temas.get(s.tema, {})
-    tipo = "acionável" if s.acionavel else "informativo"
-    return (
-        f"{tema.get('emoji', '')} {f.esc(f.encurtar(pergunta, 45))}: {f.pp((s.p_sinal or 0) - (s.p_base or 0))} "
-        f"(z {f.numero(s.z or 0, 1)}) → {_seta(s.sentido)} {s.ativo.removesuffix('.SA')} {s.semaforo} ({tipo})"
+    dp = (s.p_sinal or 0) - (s.p_base or 0)
+    motivo = ((s.detalhes or {}).get("motivos") or [""])[0]
+    texto = (
+        f"{tema.get('emoji', '')} {f.esc(f.encurtar(pergunta, 50))} {'▲' if dp > 0 else '▼'} "
+        f"{f.numero(abs(dp) * 100, 0)} p.p. → {_seta(s.sentido)} {jogada.nome(s.ativo)}"
     )
+    return texto + (f" (não operar: {f.esc(motivo)})" if motivo else "")
 
 
 def texto_recentes(con: sqlite3.Connection, cfg: Config, agora: datetime, limite: int = 10) -> str:
@@ -431,7 +448,7 @@ def texto_recentes(con: sqlite3.Connection, cfg: Config, agora: datetime, limite
     partes = ["🎯 <b>Últimos sinais</b>"]
     if pausa and (ate := de_iso(pausa)) and ate > agora:
         partes.append(f"⏸️ Trava ligada até {f.data_hora(ate)}")
-    status = {"aberto": "⏳", "alvo": "🎯", "stop": "🛑", "tempo": "⏱️", "invalidado": "❌", "encerrado": "📋"}
+    status = {"aberto": "⏳", "alvo": "✅", "stop": "🛑", "tempo": "⏱️", "invalidado": "❌", "encerrado": "📋"}
     for r in linhas:
         tema = cfg.temas.get(r["tema"], {})
         res = f" {f.pct(r['resultado'], 1, sinal=True)}" if r["resultado"] is not None else ""
@@ -440,5 +457,7 @@ def texto_recentes(con: sqlite3.Connection, cfg: Config, agora: datetime, limite
             f"{f.data_hora(de_iso(r['ts']))} {tipo} {tema.get('emoji', '')} {_seta(r['sentido'])} "
             f"{r['ativo'].removesuffix('.SA')} {r['semaforo'] or ''} {status.get(r['status'] or '', '')}{res}"
         )
-    partes.append("🎯 acionável · 📋 informativo · ⏳ aberto · 🎯 alvo · 🛑 stop · ⏱️ prazo · ❌ invalidado")
+    partes.append(
+        "🎯 para operar · 📋 só informativo · ⏳ aberto · ✅ alvo · 🛑 stop · ⏱️ prazo · ❌ invalidado"
+    )
     return "\n".join(partes)

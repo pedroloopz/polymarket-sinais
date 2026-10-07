@@ -30,7 +30,8 @@ const dinheiro = (v, moeda) => `${v < 0 ? MENOS : ""}${moeda === "BRL" ? "R$" : 
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const curto = (t, n) => (t.length <= n ? t : t.slice(0, n - 1).trimEnd() + "…");
 const nomeAtivo = (t) => t.replace(/\.SA$/, "");
-const seta = (s) => (s > 0 ? "🔺 LONG" : "🔻 SHORT");
+const seta = (s) => (s > 0 ? "🟢 LONG" : "🔴 SHORT");
+const CONFIANCA = { "🟢": "🟢 alta", "🟡": "🟡 média", "🔴": "🔴 baixa" };
 const NOMES_IND = { "BZ=F": "Brent", "DX-Y.NYB": "DXY", "^VIX": "VIX", "BRL=X": "Dólar" };
 
 function partesLocais(agora, fuso) {
@@ -225,37 +226,36 @@ export async function montarSinal(m, c, agora, vigia, buscarPreco) {
   const acionavel = motivos.length === 0;
   const urgencia = acionavel ? (sem.cor === "🟢" ? "🚨" : "🔔") : "📋";
 
-  const topo = urgencia === "🚨" ? "🚨 SINAL" : acionavel ? "🔔 SINAL" : "📋 Informativo";
+  // Cartão curto: o que aconteceu, o que fazer, por quê e preços. Detalhe técnico fica no diário.
+  const topo = urgencia === "🚨" ? "🚨 <b>OPORTUNIDADE FORTE</b>" : acionavel ? "🔔 <b>OPORTUNIDADE</b>" : "👀 <b>Movimento</b>";
   const minutos = Math.max((agora.getTime() - c.tBase) / MIN, 1);
+  const setor = vigia.setores?.[ativo];
+  const pol = m.polaridade ?? 1;
+  const leitura = pol ? (m.leitura || {})[sentidoProb * pol > 0 ? "sobe" : "cai"] : null;
   const linhas = [
-    `${topo} — ${m.emoji} ${esc(m.nome_tema)} ⚡`,
-    esc(curto(m.pergunta, 70)),
-    `${prob(c.pBase)} → ${prob(c.pAgora)} (${pp(c.dp)}, z = ${num(c.z, 1)}) em ${num(minutos, 0)} min`,
-    `Semáforo: ${sem.cor} ${sem.detalhe}`,
-    `${seta(sentido)} ${nomeAtivo(ativo)}${alt ? ` (alt.: ${seta(alt.sentido)} ${nomeAtivo(alt.ativo)})` : ""}`,
+    `${topo} · ${m.emoji} ${esc(m.nome_tema)} ⚡`,
+    `❓ ${esc(curto(m.pergunta, 90))}`,
+    `📊 Chance: ${prob(c.pBase)} → <b>${prob(c.pAgora)}</b> (${c.dp > 0 ? "▲" : "▼"} ${num(Math.abs(c.dp) * 100, 0)} p.p. em ${num(minutos, 0)} min)`,
+    "",
+    `👉 <b>${seta(sentido)} ${nomeAtivo(ativo)}</b>${setor ? ` (${esc(setor)})` : ""}`,
   ];
+  if (leitura) linhas.push(`💡 ${esc(leitura)}`);
+  if (esperado != null) linhas.push(`📏 Pelo histórico, ${nomeAtivo(ativo)} costuma andar ${pct(esperado, 1, true)} com esse movimento`);
+  if (alt) linhas.push(`Alternativa: ${seta(alt.sentido)} ${nomeAtivo(alt.ativo)}`);
   if (plano) {
-    let l1 = `Entrada ~${dinheiro(plano.entrada, moeda)}`;
-    if (plano.alvo != null) l1 += ` | 🎯 Alvo: ${dinheiro(plano.alvo, moeda)} (parcial ${dinheiro(plano.parcial, moeda)})`;
-    linhas.push(l1);
-    let l2 = `🛑 Stop: ${dinheiro(plano.stop, moeda)}`;
-    if (plano.gr != null) l2 += ` | Ganho/risco: ${num(plano.gr, 1)}`;
-    if (plano.stopTempo) l2 += ` | ⏱️ Sair até ${hora(plano.stopTempo)}`;
-    linhas.push(l2);
+    linhas.push("", `💵 Entrada ~${dinheiro(plano.entrada, moeda)}`);
+    linhas.push(`${plano.alvo != null ? `🎯 Alvo ${dinheiro(plano.alvo, moeda)}` : "🎯 Alvo: —"} · 🛑 Stop ${dinheiro(plano.stop, moeda)}`);
+    const prazo = [];
+    if (plano.stopTempo) prazo.push(`⏱️ Sair até ${hora(plano.stopTempo)}`);
+    if (plano.quantidade != null) prazo.push(`tamanho ${plano.quantidade} un. (≈ ${dinheiro(plano.quantidade * plano.entrada, moeda)})`);
+    else if (!vigia.capital_brl) prazo.push("tamanho: defina /capital");
+    if (prazo.length) linhas.push(prazo.join(" · "));
   }
-  if (esperado != null) {
-    linhas.push(`Esperado ${pct(esperado, 1, true)} | realizado ${pct(realizado ?? 0, 1, true)} → espaço de ${pct(espaco, 1, true)}`);
-  }
-  let tam = `Tamanho máx.: ${num(r.risco_pct, 1)}% do capital`;
-  if (plano?.quantidade != null) tam += ` → ${plano.quantidade} un. (≈ ${dinheiro(plano.quantidade * plano.entrada, moeda)})`;
-  else if (!vigia.capital_brl) tam += " (defina com /capital)";
-  linhas.push(`${tam} | Latência do alerta: ${num(c.latencia_s / 60, 0)} min`);
-  linhas.push(`Confiança: ${confianca} | 🕵️ Manipulação: ${m.manip || "—"}`);
-  for (const n of c.notas) linhas.push(`ℹ️ ${n}`);
-  if (motivos.length) linhas.push("Por que não é acionável: " + motivos.join("; "));
-  linhas.push("⚠️ Sinal de sistema, não recomendação. Registrado no diário.");
+  linhas.push("", `Confiança ${CONFIANCA[confianca] || confianca} · Manipulação ${m.manip || "—"}`);
+  if (motivos.length) linhas.push("⛔ Não operar: " + motivos.join("; "));
+  linhas.push("⚠️ Sinal do sistema, não é recomendação. /sinal mostra o histórico.");
 
-  const linhaCurta = `${m.emoji} ${esc(curto(m.pergunta, 45))}: ${pp(c.dp)} (z ${num(c.z, 1)}) → ${seta(sentido)} ${nomeAtivo(ativo)} ${sem.cor} (informativo ⚡)`;
+  const linhaCurta = `${m.emoji} ${esc(curto(m.pergunta, 50))} ${c.dp > 0 ? "▲" : "▼"} ${num(Math.abs(c.dp) * 100, 0)} p.p. → ${seta(sentido)} ${nomeAtivo(ativo)}${motivos[0] ? ` (não operar: ${esc(motivos[0])})` : ""} ⚡`;
   return {
     acionavel, urgencia, texto: linhas.join("\n"), linha: linhaCurta,
     sinal: {
@@ -273,7 +273,7 @@ export async function montarSinal(m, c, agora, vigia, buscarPreco) {
 // ---------- acompanhamento ----------
 export function acompanhar(s, preco, pAtual, agora, r) {
   const resultado = s.sentido * (preco / s.entrada - 1) - r.custo_pct / 100;
-  const cab = `${nomeAtivo(s.ativo)} (${s.sentido > 0 ? "🔺 long" : "🔻 short"} de ${num(s.entrada)}) agora ${num(preco)}`;
+  const cab = `${s.sentido > 0 ? "🟢 LONG" : "🔴 SHORT"} ${nomeAtivo(s.ativo)}: entrada ${num(s.entrada)} → agora ${num(preco)}`;
   const res = `Resultado simulado: ${pct(resultado, 2, true)}`;
   if (pAtual != null && s.p_base != null && s.p_sinal != null) {
     const mov = s.p_sinal - s.p_base;

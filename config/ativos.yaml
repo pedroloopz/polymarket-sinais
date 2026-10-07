@@ -2,6 +2,7 @@
 # temas: {tema: sentido} — reação esperada quando a probabilidade do evento do tema SOBE.
 #   +1 = ativo sobe | -1 = ativo cai | 0 = sentido desconhecido (definido só pela calibração).
 # É hipótese inicial: a calibração (Fase 2, módulo 2) substitui pelo valor medido.
+# setor: grupo mostrado nas mensagens ("🟢 LONG aéreas: UAL, DAL").
 # pregao: fuso e horário local da bolsa (usado para separar movimento em pregão de gap de abertura).
 # A B3 muda o horário quando os EUA entram/saem do horário de verão; confira em b3.com.br.
 
@@ -13,54 +14,54 @@ pregoes:
 
 ativos:
   # --- Energia / petróleo ---
-  XLE: {nome: "Energy Select SPDR", bolsa: EUA, temas: {ira: -1, mar_vermelho: 1}}
-  USO: {nome: "US Oil Fund", bolsa: EUA, temas: {ira: -1, mar_vermelho: 1}}
-  APA: {nome: "APA Corp", bolsa: EUA, temas: {ira: -1}}
-  OXY: {nome: "Occidental", bolsa: EUA, temas: {ira: -1}}
-  DVN: {nome: "Devon Energy", bolsa: EUA, temas: {ira: -1}}
+  XLE: {nome: "Energy Select SPDR", setor: "petróleo", bolsa: EUA, temas: {ira: -1, mar_vermelho: 1}}
+  USO: {nome: "US Oil Fund", setor: "petróleo", bolsa: EUA, temas: {ira: -1, mar_vermelho: 1}}
+  APA: {nome: "APA Corp", setor: "petróleo", bolsa: EUA, temas: {ira: -1}}
+  OXY: {nome: "Occidental", setor: "petróleo", bolsa: EUA, temas: {ira: -1}}
+  DVN: {nome: "Devon Energy", setor: "petróleo", bolsa: EUA, temas: {ira: -1}}
   # --- Navios-tanque e contêineres ---
-  FRO: {nome: "Frontline", bolsa: EUA, temas: {ira: -1, mar_vermelho: 1}}
-  DHT: {nome: "DHT Holdings", bolsa: EUA, temas: {ira: -1}}
-  STNG: {nome: "Scorpio Tankers", bolsa: EUA, temas: {ira: -1}}
-  ZIM: {nome: "ZIM Shipping", bolsa: EUA, temas: {mar_vermelho: 1}}
+  FRO: {nome: "Frontline", setor: "navios", bolsa: EUA, temas: {ira: -1, mar_vermelho: 1}}
+  DHT: {nome: "DHT Holdings", setor: "navios", bolsa: EUA, temas: {ira: -1}}
+  STNG: {nome: "Scorpio Tankers", setor: "navios", bolsa: EUA, temas: {ira: -1}}
+  ZIM: {nome: "ZIM Shipping", setor: "navios", bolsa: EUA, temas: {mar_vermelho: 1}}
   # --- Aéreas ---
-  UAL: {nome: "United Airlines", bolsa: EUA, temas: {ira: 1}}
-  DAL: {nome: "Delta", bolsa: EUA, temas: {ira: 1}}
-  JETS: {nome: "US Global Jets ETF", bolsa: EUA, temas: {ira: 1}}
+  UAL: {nome: "United Airlines", setor: "aéreas", bolsa: EUA, temas: {ira: 1}}
+  DAL: {nome: "Delta", setor: "aéreas", bolsa: EUA, temas: {ira: 1}}
+  JETS: {nome: "US Global Jets ETF", setor: "aéreas", bolsa: EUA, temas: {ira: 1}}
   # --- Defesa ---
-  LMT: {nome: "Lockheed Martin", bolsa: EUA, temas: {ira: -1, taiwan: 1, ucrania: -1}}
-  NOC: {nome: "Northrop Grumman", bolsa: EUA, temas: {ira: -1}}
-  RTX: {nome: "RTX", bolsa: EUA, temas: {ira: -1, ucrania: -1}}
+  LMT: {nome: "Lockheed Martin", setor: "defesa", bolsa: EUA, temas: {ira: -1, taiwan: 1, ucrania: -1}}
+  NOC: {nome: "Northrop Grumman", setor: "defesa", bolsa: EUA, temas: {ira: -1}}
+  RTX: {nome: "RTX", setor: "defesa", bolsa: EUA, temas: {ira: -1, ucrania: -1}}
   # --- Semicondutores ---
-  TSM: {nome: "TSMC", bolsa: EUA, temas: {taiwan: -1}}
-  NVDA: {nome: "Nvidia", bolsa: EUA, temas: {taiwan: -1}}
-  SMH: {nome: "VanEck Semiconductor", bolsa: EUA, temas: {taiwan: -1}}
+  TSM: {nome: "TSMC", setor: "chips", bolsa: EUA, temas: {taiwan: -1}}
+  NVDA: {nome: "Nvidia", setor: "chips", bolsa: EUA, temas: {taiwan: -1}}
+  SMH: {nome: "VanEck Semiconductor", setor: "chips", bolsa: EUA, temas: {taiwan: -1}}
   # --- Índices EUA ---
-  SPY: {nome: "S&P 500", bolsa: EUA, temas: {fed: 1}}
-  IWM: {nome: "Russell 2000", bolsa: EUA, temas: {fed: 1}}
+  SPY: {nome: "S&P 500", setor: "bolsa EUA", bolsa: EUA, temas: {fed: 1}}
+  IWM: {nome: "Russell 2000", setor: "bolsa EUA", bolsa: EUA, temas: {fed: 1}}
   # --- B3 ---
-  PETR4.SA: {nome: "Petrobras PN", bolsa: B3, temas: {ira: -1, brasil: 0}}
-  PRIO3.SA: {nome: "PRIO", bolsa: B3, temas: {ira: -1}}
+  PETR4.SA: {nome: "Petrobras PN", setor: "petróleo", bolsa: B3, temas: {ira: -1, brasil: 0}}
+  PRIO3.SA: {nome: "PRIO", setor: "petróleo", bolsa: B3, temas: {ira: -1}}
   # AZUL4 saiu do pregão com a reestruturação da Azul (2025); ação diluída, fora do monitoramento.
-  VALE3.SA: {nome: "Vale", bolsa: B3, temas: {taiwan: -1}}
-  BBAS3.SA: {nome: "Banco do Brasil", bolsa: B3, temas: {brasil: 0}}
-  EMBJ3.SA: {nome: "Embraer", bolsa: B3, temas: {tarifas: -1}}
-  SUZB3.SA: {nome: "Suzano", bolsa: B3, temas: {tarifas: -1}}
-  WEGE3.SA: {nome: "WEG", bolsa: B3, temas: {tarifas: -1}}
-  ^BVSP: {nome: "Ibovespa", bolsa: B3, temas: {fed: 1, brasil: 0, tarifas: -1}}
+  VALE3.SA: {nome: "Vale", setor: "minério", bolsa: B3, temas: {taiwan: -1}}
+  BBAS3.SA: {nome: "Banco do Brasil", setor: "bancos", bolsa: B3, temas: {brasil: 0}}
+  EMBJ3.SA: {nome: "Embraer", setor: "exportadoras", bolsa: B3, temas: {tarifas: -1}}
+  SUZB3.SA: {nome: "Suzano", setor: "exportadoras", bolsa: B3, temas: {tarifas: -1}}
+  WEGE3.SA: {nome: "WEG", setor: "exportadoras", bolsa: B3, temas: {tarifas: -1}}
+  ^BVSP: {nome: "Ibovespa", setor: "Ibovespa", bolsa: B3, temas: {fed: 1, brasil: 0, tarifas: -1}}
   # --- Cripto (balanços) ---
-  COIN: {nome: "Coinbase", bolsa: EUA, temas: {balancos_cripto: 0}}
-  MSTR: {nome: "Strategy", bolsa: EUA, temas: {balancos_cripto: 0}}
-  HOOD: {nome: "Robinhood", bolsa: EUA, temas: {balancos_cripto: 0}}
-  CRCL: {nome: "Circle", bolsa: EUA, temas: {balancos_cripto: 0}}
-  MARA: {nome: "MARA Holdings", bolsa: EUA, temas: {balancos_cripto: 0}}
-  RIOT: {nome: "Riot Platforms", bolsa: EUA, temas: {balancos_cripto: 0}}
-  GLXY: {nome: "Galaxy Digital", bolsa: EUA, temas: {balancos_cripto: 0}}
+  COIN: {nome: "Coinbase", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
+  MSTR: {nome: "Strategy", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
+  HOOD: {nome: "Robinhood", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
+  CRCL: {nome: "Circle", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
+  MARA: {nome: "MARA Holdings", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
+  RIOT: {nome: "Riot Platforms", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
+  GLXY: {nome: "Galaxy Digital", setor: "cripto", bolsa: EUA, temas: {balancos_cripto: 0}}
 
 # Indicadores do semáforo cruzado (módulo 4, Fase 2) e termômetros.
 indicadores:
-  BZ=F: {nome: "Brent", bolsa: FUT}
-  DX-Y.NYB: {nome: "DXY", bolsa: FUT}
-  ^VIX: {nome: "VIX", bolsa: EUA}
-  BRL=X: {nome: "Dólar/BRL", bolsa: FUT, temas: {fed: -1, brasil: 0, tarifas: 1}}
-  BTC-USD: {nome: "Bitcoin", bolsa: CRIPTO, temas: {btc: 1}}
+  BZ=F: {nome: "Brent", setor: "petróleo", bolsa: FUT}
+  DX-Y.NYB: {nome: "DXY", setor: "dólar", bolsa: FUT}
+  ^VIX: {nome: "VIX", setor: "medo", bolsa: EUA}
+  BRL=X: {nome: "Dólar/BRL", setor: "dólar", bolsa: FUT, temas: {fed: -1, brasil: 0, tarifas: 1}}
+  BTC-USD: {nome: "Bitcoin", setor: "cripto", bolsa: CRIPTO, temas: {btc: 1}}
