@@ -16,16 +16,24 @@ const LIMITE = 280;
 
 export const ESTILO = `Você escreve posts para o X do perfil {PERFIL}, série "🔮 Termômetro do Caos", sobre mercados de previsão (Polymarket, Kalshi) e o que eles dizem sobre o mercado financeiro.
 
-VOZ: um humano puto da vida que briga, toma posição e não pede licença. Português do Brasil, coloquial, frases curtas, verbos fortes. Pode xingar e usar palavrão (porra, caralho, merda, puta que pariu) contra o MERCADO, a NARRATIVA, a MANCHETE, o "consenso", o "jornalismo econômico", a situação. Zero "talvez", zero "pode ser que" quando o dado é claro; quando o dado está dividido, diga "o dado está dividido" com a mesma raiva.
+QUEM FALA: o dono do perfil, SEMPRE na primeira pessoa do singular. "Eu vejo", "eu não compro essa narrativa", "minha leitura", "eu olhei o livro e...". Nunca "nós", "a gente" ou voz impessoal de jornal.
 
-ABERTURA (as 2 primeiras linhas decidem se a pessoa para de rolar a tela). Use as técnicas da lista "ganchos" dos dados, que vêm de pesquisa sobre atenção e compartilhamento:
-- Lacuna de curiosidade: abra com uma contradição ou pergunta que só a última linha resolve.
+VOZ: um humano puto da vida que briga, toma posição e não pede licença. Português do Brasil, coloquial, verbos fortes. Pode xingar e usar palavrão (porra, caralho, merda, puta que pariu) contra o MERCADO, a NARRATIVA, a MANCHETE, o "consenso", o "jornalismo econômico", a situação. Zero "talvez", zero "pode ser que" quando o dado é claro; quando o dado está dividido, eu digo que está dividido com a mesma raiva.
+
+SEM PERGUNTAS: nenhuma frase interrogativa, nenhum "?". Eu afirmo. A pergunta do mercado vira afirmação: "Fed vai cortar os juros?" vira "o mercado dá 31% de corte".
+
+ABERTURA (decide se a pessoa para de rolar a tela). Use as técnicas da lista "ganchos" dos dados, que vêm de pesquisa sobre atenção e compartilhamento:
+- Lacuna de curiosidade feita com AFIRMAÇÃO: uma contradição que só o fim do post explica ("Todo mundo jura que o Fed corta. Eu olhei onde está o dinheiro e o número é outro.").
 - Emoção de alta ativação: raiva, ansiedade ou espanto. Nunca tristeza nem tédio.
 - Uma palavra negativa concreta e um número específico já na primeira linha.
 - O "outro lado" é a narrativa, a manchete, o consenso. Nunca pessoas.
-Ex.: "A guerra acabou pro mercado. Só a TV ainda não percebeu, porra." / "Em 40 minutos, US$ 3 milhões mudaram de lado. O petróleo ainda tá dormindo." / "Todo mundo jura que o Fed corta. Quem põe dinheiro diz 31%."
+Ex.: "A guerra acabou pro mercado. Só a TV ainda não percebeu, porra." / "Em 40 minutos, US$ 3 milhões mudaram de lado e eu fui o único idiota olhando." / "Eu passei o dia ouvindo que o petróleo dispara. O dinheiro de verdade diz o contrário."
+
+{FORMATO}
 
 ESTUDOS: quando reforçar o argumento, use NO MÁXIMO UM estudo da lista "estudos" dos dados. Escreva a referência exatamente como no campo "curta" (ex.: "Berg et al., 2008") e use só o número do "achado". Nunca cite estudo, pesquisa científica, autor, universidade ou número que não esteja na lista. Preencha o campo "estudo" com o id usado, ou "" se não usou. Não coloque link: o sistema manda a fonte à parte.
+
+QUEM GANHA E QUEM PERDE: os dados trazem "quem_ganha" e "quem_perde" (setores e tickers da bolsa). Explique a ligação com o mercado de previsão como leitura minha, nunca como ordem.
 
 TERMINE com um veredito claro numa linha: "🟢 mercado bom", "🔴 mercado ruim" ou "⚠️ mercado mentindo" (use este quando houver risco de manipulação ou divergência Polymarket × Kalshi), com o motivo.
 
@@ -35,9 +43,19 @@ LIMITES INEGOCIÁVEIS (quebrar qualquer um invalida o post):
 3. NUNCA escreva "compre", "venda", "entre", "alvo", "preço-alvo", "stop" ou qualquer recomendação de ativo. Opinião sobre o cenário, sim; recomendação, não.
 4. Use SÓ números que estão nos dados. Não arredonde para impressionar. Cite a fonte (Polymarket, Kalshi).
 5. Previsão nunca vira certeza: o mercado "dá X%", não "vai acontecer".
-6. Máximo 2 emojis no corpo do post (o veredito conta). Sem hashtags.
+6. Máximo {EMOJIS} emojis no corpo do post (o veredito conta). Sem hashtags.
 7. NÃO escreva a linha "📌 Minha posição" — o sistema acrescenta.
-8. Cada post cabe em {LIMITE} caracteres.`;
+8. Primeira pessoa do singular e nenhum "?". Post que quebrar isso volta para refazer.
+9. Cada post tem no máximo {LIMITE} caracteres.`;
+
+// X Premium: post longo (até 25.000 caracteres no X); aqui o padrão é 500–1.500 para caber
+// em 2 versões numa mensagem do Telegram (limite 4.096).
+const FORMATO_LONGO = `FORMATO LONGO (X Premium): cada post tem entre {MIN} e {LIMITE} caracteres.
+- As primeiras ~280 letras aparecem antes do "Mostrar mais": o gancho inteiro tem que estar ali.
+- Parágrafos de 1 a 3 frases, separados por linha em branco. Nada de bloco de texto.
+- Roteiro: gancho → o dado (probabilidade, variação em 24 h, volume, Kalshi se houver) → por que isso importa (aqui cabe o estudo) → quem ganha e quem perde na bolsa → minha leitura → veredito.
+- Bom é denso, não comprido: cada parágrafo traz um fato ou uma posição. Corte enrolação.`;
+const FORMATO_CURTO = "FORMATO CURTO: frases curtas, um único bloco, direto ao ponto.";
 
 const SCHEMA = {
   type: "object",
@@ -52,7 +70,7 @@ const SCHEMA = {
         required: ["texto", "gancho", "estudo"],
         properties: {
           texto: { type: "string" },
-          gancho: { type: "string", enum: ["lacuna", "contraste", "numero_choque", "contrarian", "denuncia", "pergunta_retorica", "estudo"] },
+          gancho: { type: "string", enum: ["lacuna", "contraste", "numero_choque", "contrarian", "denuncia", "estudo"] },
           estudo: { type: "string" },
         },
       },
@@ -61,8 +79,8 @@ const SCHEMA = {
 };
 
 const PEDIDOS = {
-  diario: "Escreva 2 versões do post diário com o maior destaque, com ganchos de tipos diferentes. Se algum estudo da lista combinar com o destaque, use-o em uma das versões. Pode citar um segundo destaque se couber.",
-  virada: "VIRADA: movimento brusco agora. Escreva 2 versões de post curto (até 200 caracteres) para sair rápido.",
+  diario: "Escreva 2 versões do post diário sobre o maior destaque, com ganchos de tipos diferentes. Se algum estudo da lista combinar com o destaque, use-o em uma das versões. Pode citar um segundo destaque se couber.",
+  virada: "VIRADA: movimento brusco agora. Escreva 2 versões mais curtas que o normal, para sair rápido.",
   fio: "Escreva UM fio de 4 a 6 posts, na ordem: gancho → o que mudou → por que importa (aqui cabe um estudo da lista) → quem ganha e quem perde no mercado → veredito. Cada item de 'posts' é um post do fio.",
   placar: "Escreva 2 versões do post '📒 Placar da Semana' com os acertos E os erros dos sinais da semana. Transparência brutal: erro é erro.",
   saida: "Escreva 2 versões do post de SAÍDA da posição: diga que zerou, o resultado (ganho ou perda, sem esconder) e o que o mercado de previsão mostrou. Sem recomendar nada.",
@@ -95,7 +113,11 @@ export function linhaPosicao(posicoes, tickers, liquidez = {}, liquidezMin = 0) 
 // porque também quer dizer pesquisa eleitoral, que é dado legítimo.
 const CIENCIA = /\b(estudos?|paper|artigo científico|cientistas|pesquisadores|universidade|et al)\b|\([^()]*\d{4}\)/i;
 
-export function validar(texto, limite = LIMITE, estudos = [], estudoId = "") {
+const PRIMEIRA_PESSOA = /(?<![\p{L}])(eu|meu|minha|meus|minhas|comigo)(?![\p{L}])/iu;
+const PLURAL = /(?<![\p{L}])(nós|nosso|nossa|nossos|nossas|a gente)(?![\p{L}])/iu;
+
+// regras: { minimo, emojis, primeiraPessoa, semPergunta } (o gerador liga todas).
+export function validar(texto, limite = LIMITE, estudos = [], estudoId = "", regras = {}) {
   const erros = [];
   const citados = (estudos || []).filter((e) => texto.includes(e.curta));
   if (CIENCIA.test(texto) && !citados.length) erros.push("citou estudo fora da lista 'estudos'");
@@ -106,9 +128,25 @@ export function validar(texto, limite = LIMITE, estudos = [], estudoId = "") {
   }
   if (PROIBIDAS.test(texto)) erros.push("palavra de recomendação proibida");
   if (texto.length > limite) erros.push(`passou de ${limite} caracteres`);
-  if ((texto.match(EMOJI) || []).length > 2) erros.push("mais de 2 emojis");
+  if (regras.minimo && texto.length < regras.minimo) erros.push(`curto demais: mínimo de ${regras.minimo} caracteres`);
+  const maxEmojis = regras.emojis ?? 2;
+  if ((texto.match(EMOJI) || []).length > maxEmojis) erros.push(`mais de ${maxEmojis} emojis`);
   if (/📌/.test(texto)) erros.push("escreveu a linha de posição");
+  if (regras.semPergunta && texto.includes("?")) erros.push("tem pergunta: troque todo '?' por afirmação");
+  if (regras.primeiraPessoa && !PRIMEIRA_PESSOA.test(texto)) erros.push("não está na primeira pessoa do singular (eu, meu, minha)");
+  if (regras.primeiraPessoa && PLURAL.test(texto)) erros.push("usou 'nós' ou 'a gente': é primeira pessoa do SINGULAR");
   return erros;
+}
+
+// Tamanho por tipo de post. X Premium (cfg.premium) libera post longo.
+export function formato(tipo, cfg = {}) {
+  const premium = Boolean(cfg.premium);
+  const max = Math.min(cfg.tamanho_max || 1500, 1800); // 2 versões têm de caber numa mensagem do Telegram
+  if (tipo === "fio") return { limite: LIMITE, minimo: 0, emojis: 2, longo: false };
+  if (tipo === "virada") return premium ? { limite: 600, minimo: 0, emojis: 2, longo: false } : { limite: 200, minimo: 0, emojis: 2, longo: false };
+  return premium
+    ? { limite: max, minimo: Math.min(cfg.tamanho_min || 500, max), emojis: 4, longo: true }
+    : { limite: LIMITE, minimo: 0, emojis: 2, longo: false };
 }
 
 export function intent(texto) {
@@ -116,17 +154,25 @@ export function intent(texto) {
 }
 
 // ---------- geração ----------
-export function montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil }) {
-  const limiteCorpo = (tipo === "virada" ? 200 : LIMITE) - (tipo === "fio" ? 0 : posLinha.length + 2);
-  const system = ESTILO.replace("{PERFIL}", perfil).replace("{LIMITE}", String(limiteCorpo));
+export function montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil, cfg }) {
+  const fmt = formato(tipo, cfg);
+  const limiteCorpo = fmt.limite - (tipo === "fio" ? 0 : posLinha.length + 2);
+  const minimo = fmt.minimo ? Math.max(fmt.minimo - posLinha.length - 2, 0) : 0;
+  const bloco = (fmt.longo ? FORMATO_LONGO : FORMATO_CURTO).replace("{MIN}", String(minimo)).replace("{LIMITE}", String(limiteCorpo));
+  const system = ESTILO.replace("{PERFIL}", perfil)
+    .replace("{FORMATO}", bloco)
+    .replace("{EMOJIS}", String(fmt.emojis))
+    .replace("{LIMITE}", String(limiteCorpo));
   const conteudo = {
     pedido: PEDIDOS[tipo],
     ajuste: ajuste ? AJUSTES[ajuste] : null,
     limite_caracteres_por_post: limiteCorpo,
+    minimo_caracteres_por_post: minimo || undefined,
     dados,
     posts_que_mais_engajaram: exemplos?.length ? exemplos : undefined,
   };
-  return { system, user: JSON.stringify(conteudo), limiteCorpo };
+  const regras = { minimo, emojis: fmt.emojis, primeiraPessoa: true, semPergunta: true };
+  return { system, user: JSON.stringify(conteudo), limiteCorpo, regras };
 }
 
 // fallbacks "default" e effort só nos modelos que aceitam (Haiku 4.5 recusaria os dois).
@@ -149,7 +195,7 @@ export function pedidoApi(cfg, system, mensagens) {
 }
 
 export async function gerar({ env, tipo, dados, posLinha, ajuste, exemplos, perfil, cfg, criarCliente }) {
-  const { system, user, limiteCorpo } = montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil });
+  const { system, user, limiteCorpo, regras } = montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil, cfg });
   if (!env.ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY === "-") return modeloFixo(tipo, dados, posLinha);
   const client = criarCliente ? criarCliente(env) : new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 1, timeout: 25_000 });
   let mensagens = [{ role: "user", content: user }];
@@ -164,7 +210,7 @@ export async function gerar({ env, tipo, dados, posLinha, ajuste, exemplos, perf
       posts = [];
     }
     const limpos = posts.map((p) => ({ ...p, texto: p.texto.trim(), estudo: p.estudo || "" }));
-    const ruins = limpos.map((p) => validar(p.texto, limiteCorpo, dados?.estudos, p.estudo));
+    const ruins = limpos.map((p) => validar(p.texto, limiteCorpo, dados?.estudos, p.estudo, regras));
     const bons = limpos.filter((_, i) => !ruins[i].length);
     const fioOk = tipo === "fio" ? bons.length === limpos.length && bons.length >= 4 : bons.length > 0;
     if (fioOk) return finalizar(tipo, bons, posLinha);
@@ -190,13 +236,15 @@ function finalizar(tipo, posts, posLinha) {
 export function modeloFixo(tipo, dados, posLinha) {
   const d = dados?.destaques?.[0] || dados?.destaque || null;
   let corpo;
-  if (tipo === "placar") corpo = "📒 Placar da Semana: os números estão no Telegram. Acerto e erro, tudo à vista.";
-  else if (tipo === "saida") corpo = `Zerei ${nome(dados.ticker)}. Resultado: ${dados.resultado_txt}. Sem drama, sem esconder.`;
+  if (tipo === "placar") corpo = "📒 Placar da Semana: eu deixo os números no Telegram. Acerto e erro, tudo à vista.";
+  else if (tipo === "saida") corpo = `Eu zerei ${nome(dados.ticker)}. Resultado: ${dados.resultado_txt}. Sem drama, sem esconder.`;
   else if (d) {
     const v = d.var_24h_pp ?? d.dp_pp ?? 0;
-    corpo = `${d.emoji || ""} ${d.pergunta}: ${Math.round(d.prob * 100)}% na Polymarket (${v > 0 ? "+" : ""}${String(v).replace(".", ",")} p.p. em 24 h).\n${d.manipulacao === "🔴" || d.manipulacao === "🟡" ? "⚠️ mercado mentindo? Risco de manipulação no radar." : v > 0 ? "🟢 o mercado tá apostando forte." : "🔴 o mercado tá correndo disso."}`;
-  } else corpo = "Mercados de previsão parados hoje. Silêncio também é dado.";
-  return [{ texto: `${corpo.slice(0, LIMITE - posLinha.length - 2)}\n\n${posLinha}`, gancho: "contraste" }];
+    const pergunta = String(d.pergunta || "").replace(/\?+\s*$/, "");
+    const veredito = d.manipulacao === "🔴" || d.manipulacao === "🟡" ? "⚠️ mercado mentindo: eu vejo risco de manipulação no radar." : v > 0 ? "🟢 eu vejo o mercado apostando forte." : "🔴 eu vejo o mercado correndo disso.";
+    corpo = `${d.emoji || ""} ${pergunta}: a Polymarket dá ${Math.round(d.prob * 100)}% (${v > 0 ? "+" : ""}${String(v).replace(".", ",")} p.p. em 24 h).\n${veredito}`;
+  } else corpo = "Eu olhei os mercados de previsão hoje: parados. Silêncio também é dado.";
+  return [{ texto: `${corpo.slice(0, LIMITE - posLinha.length - 2)}\n\n${posLinha}`, gancho: "contraste", estudo: "" }];
 }
 
 // ---------- mensagem no Telegram ----------
@@ -227,7 +275,7 @@ export function textoTelegram(tipo, posts, aviso = "", estudos = []) {
   const corpo =
     tipo === "fio"
       ? posts.map((p, i) => `<b>${i + 1}/${posts.length}</b>\n${esc(p.texto)}${fonte(p, estudos)}`).join("\n\n")
-      : posts.map((p, i) => `<b>${"AB"[i]})</b> ${esc(p.texto)}\n<i>${p.texto.length}/280</i>${fonte(p, estudos)}`).join("\n\n");
+      : posts.map((p, i) => `<b>${"AB"[i]})</b> ${esc(p.texto)}\n<i>${p.texto.length} caracteres</i>${fonte(p, estudos)}`).join("\n\n");
   return `${TITULOS[tipo]} — rascunho para o X${aviso ? `\n${aviso}` : ""}\n\n${corpo}`;
 }
 
