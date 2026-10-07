@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { devidos, disparar } from "../src/disparos.js";
+import { devidos, disparar, textoDisparo } from "../src/disparos.js";
 
 function kv(inicial = {}) {
   const dados = { ...inicial };
@@ -34,4 +34,20 @@ test("falha do GitHub não marca como feito (tenta de novo em 5 min)", async () 
   const erro = async () => new Response("no", { status: 403 });
   assert.deepEqual(await disparar(env, new Date("2026-10-06T15:08:00Z"), erro), []);
   assert.equal(env.ESTADO.dados.disparos, undefined);
+});
+
+test("anota o resultado para o /status", async () => {
+  const env = { GH_DISPATCH_TOKEN: "t", ESTADO: kv() };
+  await disparar(env, new Date("2026-10-06T15:08:00Z"), async () => new Response('{"message":"Resource not accessible by personal access token"}', { status: 403 }));
+  const info = JSON.parse(env.ESTADO.dados.disparo_status);
+  assert.equal(info.status, 403);
+  assert.match(textoDisparo(info), /HTTP 403.*Resource not accessible.*Actions: Read and write/);
+  await disparar(env, new Date("2026-10-06T16:08:00Z"), async () => { throw new TypeError("Illegal invocation"); });
+  assert.match(textoDisparo(JSON.parse(env.ESTADO.dados.disparo_status)), /Illegal invocation/);
+  await disparar(env, new Date("2026-10-06T17:08:00Z"), async () => new Response(null, { status: 204 }));
+  assert.match(textoDisparo(JSON.parse(env.ESTADO.dados.disparo_status)), /✅ coleta_horaria\.yml/);
+  const semToken = { GH_DISPATCH_TOKEN: "-", ESTADO: kv() };
+  await disparar(semToken, new Date("2026-10-06T15:08:00Z"));
+  assert.match(textoDisparo(JSON.parse(semToken.ESTADO.dados.disparo_status)), /sem o Secret/);
+  assert.match(textoDisparo(null), /ainda não tentou/);
 });

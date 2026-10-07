@@ -56,7 +56,10 @@ async function tratarUpdate(update, env, ctx) {
     return respostas.map((x) => ({ method: "sendMessage", chat_id: chatId, text: x.texto, parse_mode: "HTML" }));
   }
 
-  const [painel, config] = await Promise.all([lerJson(env, "painel"), lerJson(env, "config")]);
+  const [painelKv, config, disparo] = await Promise.all([
+    lerJson(env, "painel"), lerJson(env, "config"), lerJson(env, "disparo_status"),
+  ]);
+  const painel = painelKv ? { ...painelKv, disparo } : null;
   const resultado = botao
     ? tratarBotao(botao.data, chatId, painel, config, botao.message?.message_id)
     : tratarMensagem(mensagem?.text || "", chatId, painel, config);

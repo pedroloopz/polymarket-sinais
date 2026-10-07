@@ -100,6 +100,8 @@ def chamar_anthropic(sistema: str, conteudo: str, opcoes: dict) -> str:
         output_config=config_saida,
         **extra,
     )
+    u = resp.usage
+    info(_log, "uso da API", modelo=resp.model, entrada=u.input_tokens, saida=u.output_tokens)
     if resp.stop_reason == "refusal":
         raise RuntimeError("tradução recusada pelo modelo")
     return next(b.text for b in resp.content if b.type == "text")

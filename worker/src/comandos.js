@@ -1,5 +1,7 @@
 // Lógica dos comandos do Telegram (pura: sem rede, testável com `node --test`).
 // O painel (textos prontos) é publicado no KV pelas GitHub Actions; aqui só repassamos.
+import { textoDisparo } from "./disparos.js";
+
 
 export const AJUDA = [
   "🤖 <b>Bot de sinais — mercados de previsão</b>",
@@ -120,6 +122,7 @@ function textoStatus(painel, agora) {
     partes.push(`${estado === "ok" ? "🟢" : "🟠"} ${fonte}: ${estado}`);
   }
   if (painel.tempo_real) partes.push(painel.tempo_real);
+  partes.push(textoDisparo(painel.disparo));
   partes.push("🤖 Worker: ✅ respondendo");
   return partes.join("\n");
 }
