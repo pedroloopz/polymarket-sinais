@@ -38,6 +38,7 @@ class Config:
     pregoes: dict[str, dict]
     regras: dict[str, Any]
     telegram: dict[str, Any] = field(default_factory=dict)
+    estudos: dict[str, Any] = field(default_factory=dict)  # config/estudos.yaml (posts do X)
 
     def temas_ligados(self) -> dict[str, dict]:
         return {k: v for k, v in self.temas.items() if v.get("ligado", True)}
@@ -75,4 +76,5 @@ def carregar(ajustes_telegram: dict | None = None, pasta: Path = PASTA_CONFIG) -
         pregoes=ativos.get("pregoes", {}),
         regras=regras,
         telegram=ajustes,
+        estudos=_ler("estudos.yaml", pasta) if (pasta / "estudos.yaml").exists() else {},
     )

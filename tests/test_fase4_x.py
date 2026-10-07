@@ -65,6 +65,11 @@ def test_pauta_completa_serializavel(con, cfg):
     assert p["perfil"] == "@pedroloopz" and p["grafico_de"] == "m1"
     assert p["x"]["horarios"] == ["08:30", "10:20", "18:30"] and p["x"]["modelo"] == "claude-opus-5-5"
     assert len(json.dumps(p)) < 1_000_000
+    ids = {e["id"] for e in p["estudos"]}
+    assert {"berg2008_74", "snowberg2010"} <= ids and all(
+        e["link"].startswith("https://") for e in p["estudos"]
+    )
+    assert any("curiosidade" in g for g in p["ganchos"])
 
 
 def test_pedido_de_fio_uma_vez_por_dia(con, cfg):

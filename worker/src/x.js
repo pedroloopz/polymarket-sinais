@@ -18,7 +18,14 @@ export const ESTILO = `Você escreve posts para o X do perfil {PERFIL}, série "
 
 VOZ: um humano puto da vida que briga, toma posição e não pede licença. Português do Brasil, coloquial, frases curtas, verbos fortes. Pode xingar e usar palavrão (porra, caralho, merda, puta que pariu) contra o MERCADO, a NARRATIVA, a MANCHETE, o "consenso", o "jornalismo econômico", a situação. Zero "talvez", zero "pode ser que" quando o dado é claro; quando o dado está dividido, diga "o dado está dividido" com a mesma raiva.
 
-PRIMEIRA LINHA É TUDO: gancho com número e contraste. Ex.: "A guerra acabou pro mercado. Só a TV ainda não percebeu, porra." / "Em 40 minutos, US$ 3 milhões mudaram de lado. O petróleo ainda tá dormindo."
+ABERTURA (as 2 primeiras linhas decidem se a pessoa para de rolar a tela). Use as técnicas da lista "ganchos" dos dados, que vêm de pesquisa sobre atenção e compartilhamento:
+- Lacuna de curiosidade: abra com uma contradição ou pergunta que só a última linha resolve.
+- Emoção de alta ativação: raiva, ansiedade ou espanto. Nunca tristeza nem tédio.
+- Uma palavra negativa concreta e um número específico já na primeira linha.
+- O "outro lado" é a narrativa, a manchete, o consenso. Nunca pessoas.
+Ex.: "A guerra acabou pro mercado. Só a TV ainda não percebeu, porra." / "Em 40 minutos, US$ 3 milhões mudaram de lado. O petróleo ainda tá dormindo." / "Todo mundo jura que o Fed corta. Quem põe dinheiro diz 31%."
+
+ESTUDOS: quando reforçar o argumento, use NO MÁXIMO UM estudo da lista "estudos" dos dados. Escreva a referência exatamente como no campo "curta" (ex.: "Berg et al., 2008") e use só o número do "achado". Nunca cite estudo, pesquisa científica, autor, universidade ou número que não esteja na lista. Preencha o campo "estudo" com o id usado, ou "" se não usou. Não coloque link: o sistema manda a fonte à parte.
 
 TERMINE com um veredito claro numa linha: "🟢 mercado bom", "🔴 mercado ruim" ou "⚠️ mercado mentindo" (use este quando houver risco de manipulação ou divergência Polymarket × Kalshi), com o motivo.
 
@@ -42,10 +49,11 @@ const SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["texto", "gancho"],
+        required: ["texto", "gancho", "estudo"],
         properties: {
           texto: { type: "string" },
-          gancho: { type: "string", enum: ["contraste", "numero_choque", "contrarian", "denuncia", "pergunta_retorica"] },
+          gancho: { type: "string", enum: ["lacuna", "contraste", "numero_choque", "contrarian", "denuncia", "pergunta_retorica", "estudo"] },
+          estudo: { type: "string" },
         },
       },
     },
@@ -53,9 +61,9 @@ const SCHEMA = {
 };
 
 const PEDIDOS = {
-  diario: "Escreva 2 versões (ganchos diferentes) do post diário com o maior destaque. Pode citar um segundo destaque se couber.",
+  diario: "Escreva 2 versões do post diário com o maior destaque, com ganchos de tipos diferentes. Se algum estudo da lista combinar com o destaque, use-o em uma das versões. Pode citar um segundo destaque se couber.",
   virada: "VIRADA: movimento brusco agora. Escreva 2 versões de post curto (até 200 caracteres) para sair rápido.",
-  fio: "Escreva UM fio de 4 a 6 posts, na ordem: gancho → o que mudou → por que importa → quem ganha e quem perde no mercado → veredito. Cada item de 'posts' é um post do fio.",
+  fio: "Escreva UM fio de 4 a 6 posts, na ordem: gancho → o que mudou → por que importa (aqui cabe um estudo da lista) → quem ganha e quem perde no mercado → veredito. Cada item de 'posts' é um post do fio.",
   placar: "Escreva 2 versões do post '📒 Placar da Semana' com os acertos E os erros dos sinais da semana. Transparência brutal: erro é erro.",
   saida: "Escreva 2 versões do post de SAÍDA da posição: diga que zerou, o resultado (ganho ou perda, sem esconder) e o que o mercado de previsão mostrou. Sem recomendar nada.",
 };
@@ -83,8 +91,19 @@ export function linhaPosicao(posicoes, tickers, liquidez = {}, liquidezMin = 0) 
 }
 
 // ---------- validação ----------
-export function validar(texto, limite = LIMITE) {
+// Menção a estudo científico sem referência da lista = invenção. "pesquisa" sozinha fica de fora
+// porque também quer dizer pesquisa eleitoral, que é dado legítimo.
+const CIENCIA = /\b(estudos?|paper|artigo científico|cientistas|pesquisadores|universidade|et al)\b|\([^()]*\d{4}\)/i;
+
+export function validar(texto, limite = LIMITE, estudos = [], estudoId = "") {
   const erros = [];
+  const citados = (estudos || []).filter((e) => texto.includes(e.curta));
+  if (CIENCIA.test(texto) && !citados.length) erros.push("citou estudo fora da lista 'estudos'");
+  if (estudoId) {
+    const e = (estudos || []).find((x) => x.id === estudoId);
+    if (!e) erros.push(`estudo "${estudoId}" não existe na lista`);
+    else if (!texto.includes(e.curta)) erros.push(`usou o estudo ${estudoId} sem escrever "${e.curta}"`);
+  }
   if (PROIBIDAS.test(texto)) erros.push("palavra de recomendação proibida");
   if (texto.length > limite) erros.push(`passou de ${limite} caracteres`);
   if ((texto.match(EMOJI) || []).length > 2) erros.push("mais de 2 emojis");
@@ -144,8 +163,8 @@ export async function gerar({ env, tipo, dados, posLinha, ajuste, exemplos, perf
     } catch {
       posts = [];
     }
-    const limpos = posts.map((p) => ({ ...p, texto: p.texto.trim() }));
-    const ruins = limpos.map((p) => validar(p.texto, limiteCorpo));
+    const limpos = posts.map((p) => ({ ...p, texto: p.texto.trim(), estudo: p.estudo || "" }));
+    const ruins = limpos.map((p) => validar(p.texto, limiteCorpo, dados?.estudos, p.estudo));
     const bons = limpos.filter((_, i) => !ruins[i].length);
     const fioOk = tipo === "fio" ? bons.length === limpos.length && bons.length >= 4 : bons.length > 0;
     if (fioOk) return finalizar(tipo, bons, posLinha);
@@ -199,11 +218,16 @@ export function teclado(pid, posts, tipo) {
 const TITULOS = { diario: "🔮 Termômetro do Caos", virada: "⚡ Alerta de virada", fio: "🧵 Fio", placar: "📒 Placar da Semana", saida: "📌 Post de saída" };
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export function textoTelegram(tipo, posts, aviso = "") {
+function fonte(p, estudos) {
+  const e = p.estudo && (estudos || []).find((x) => x.id === p.estudo);
+  return e ? `\n🔗 Fonte (responda no próprio post): ${esc(e.cita)} — ${e.link}` : "";
+}
+
+export function textoTelegram(tipo, posts, aviso = "", estudos = []) {
   const corpo =
     tipo === "fio"
-      ? posts.map((p, i) => `<b>${i + 1}/${posts.length}</b>\n${esc(p.texto)}`).join("\n\n")
-      : posts.map((p, i) => `<b>${"AB"[i]})</b> ${esc(p.texto)}\n<i>${p.texto.length}/280</i>`).join("\n\n");
+      ? posts.map((p, i) => `<b>${i + 1}/${posts.length}</b>\n${esc(p.texto)}${fonte(p, estudos)}`).join("\n\n")
+      : posts.map((p, i) => `<b>${"AB"[i]})</b> ${esc(p.texto)}\n<i>${p.texto.length}/280</i>${fonte(p, estudos)}`).join("\n\n");
   return `${TITULOS[tipo]} — rascunho para o X${aviso ? `\n${aviso}` : ""}\n\n${corpo}`;
 }
 
@@ -252,11 +276,12 @@ export async function publicarRascunho(env, { tipo, dados, tickers, ajuste = nul
   ]);
   const posicoes = posicoesEfetivas(manuais, pauta.posicoes_auto);
   const posLinha = linhaPosicao(posicoes, tickers, pauta.liquidez || {}, pauta.liquidez_min || 0);
+  if (pauta.estudos?.length && tipo !== "saida") dados = { ...dados, estudos: pauta.estudos, ganchos: pauta.ganchos };
   const posts = await gerar({
     env, tipo, dados, posLinha, ajuste, exemplos: exemplosEngajamento(eng), perfil: pauta.perfil || "@pedroloopz", cfg: pauta.x,
   });
   const pid = pidAnterior || `${tipo}-${agora.getTime().toString(36)}`;
-  const texto = textoTelegram(tipo, posts, aviso);
+  const texto = textoTelegram(tipo, posts, aviso, dados?.estudos);
   const botoes = teclado(pid, posts, tipo);
   const comFoto = tipo === "diario" && pauta.grafico_png && texto.length <= 1024;
   const msg = comFoto

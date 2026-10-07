@@ -1,0 +1,44 @@
+# Estudos que os posts do X podem citar (módulo 14).
+# Regra: o post só cita o que está aqui, com o "cita" exato e o número do "achado".
+# O modelo nunca inventa estudo, autor ou número; o código recusa citação fora da lista.
+# Antes de acrescentar um estudo: confira o artigo original e o link.
+
+estudos:
+  - id: berg2008_74
+    cita: "Berg, Nelson e Rietz, 2008"
+    curta: "Berg et al., 2008"
+    achado: "Em 964 pesquisas de 5 eleições presidenciais dos EUA (1988–2004), o mercado de previsão ficou mais perto do resultado em 74% das vezes."
+    quando: "eleição; mercado de previsão contra pesquisa eleitoral"
+    link: "https://iemweb.biz.uiowa.edu/about-iem/research/prediction-market-accuracy-in-the-long-run/"
+
+  - id: berg2008_100d
+    cita: "Berg, Nelson e Rietz, 2008"
+    curta: "Berg et al., 2008"
+    achado: "Com mais de 100 dias de antecedência, o mercado de previsão bateu as pesquisas em todas as 5 eleições estudadas."
+    quando: "eleição distante (mais de 3 meses); quem desdenha do mercado"
+    link: "https://iemweb.biz.uiowa.edu/about-iem/research/prediction-market-accuracy-in-the-long-run/"
+
+  - id: wolfers2004
+    cita: "Wolfers e Zitzewitz, 2004"
+    curta: "Wolfers e Zitzewitz, 2004"
+    achado: "Previsões de mercados de previsão costumam ser bem precisas e superam a maioria das previsões moderadamente sofisticadas."
+    quando: "por que olhar a Polymarket; mercado contra manchete ou analista"
+    link: "https://www.nber.org/papers/w10504"
+
+  - id: snowberg2010
+    cita: "Snowberg e Wolfers, 2010"
+    curta: "Snowberg e Wolfers, 2010"
+    achado: "Apostadores superestimam azarões e subestimam favoritos (viés favorito–azarão), por erro de percepção de probabilidade."
+    quando: "chance abaixo de 10% ou acima de 90%; azarão que parece barato"
+    link: "https://www.nber.org/papers/w15923"
+
+# Técnicas de abertura usadas no prompt (não são citadas nos posts).
+ganchos:
+  - tecnica: "Lacuna de curiosidade: abrir uma pergunta ou contradição que só o fim do post fecha."
+    base: "Loewenstein, 1994 (Psychological Bulletin)"
+  - tecnica: "Emoção de alta ativação (raiva, ansiedade, espanto) espalha mais; tristeza e tédio espalham menos."
+    base: "Berger e Milkman, 2012 (Journal of Marketing Research)"
+  - tecnica: "Palavra negativa concreta no título aumenta o clique (cerca de +2,3% por palavra)."
+    base: "Robertson et al., 2023 (Nature Human Behaviour)"
+  - tecnica: "Conteúdo sobre o 'outro lado' engaja cerca de 2× mais; aqui o outro lado é a narrativa e o consenso, nunca pessoas."
+    base: "Rathje, Van Bavel e van der Linden, 2021 (PNAS)"

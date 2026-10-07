@@ -162,6 +162,12 @@ def montar(
         "liquidez": liquidez(con),
         "liquidez_min": rx.get("liquidez_min_diaria", 5_000_000),
         "posicoes_auto": posicoes_auto,
+        # Estudos que os posts podem citar e técnicas de abertura (config/estudos.yaml).
+        "estudos": [
+            {k: e.get(k) for k in ("id", "cita", "curta", "achado", "quando", "link")}
+            for e in cfg.estudos.get("estudos", [])
+        ],
+        "ganchos": [g.get("tecnica") for g in cfg.estudos.get("ganchos", [])],
         "x": {
             "horarios": rx.get("horarios", ["08:30", "10:20", "18:30"]),
             "modelo": rx.get("modelo", "claude-opus-5-5"),
