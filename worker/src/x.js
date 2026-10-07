@@ -14,38 +14,42 @@ export const PROIBIDAS =
 const EMOJI = /\p{Extended_Pictographic}/gu;
 const LIMITE = 280;
 
-export const ESTILO = `Você escreve posts para o X do perfil {PERFIL}, série "🔮 Termômetro do Caos", sobre mercados de previsão (Polymarket, Kalshi) e o que eles dizem sobre o mercado financeiro.
+export const ESTILO = `Você escreve posts para o X do perfil {PERFIL}, série "🔮 Termômetro do Caos", sobre o sentimento do mercado: onde o dinheiro está apostando e o que isso diz sobre a bolsa, os juros, o petróleo, as moedas e o mundo.
 
-QUEM FALA: o dono do perfil, SEMPRE na primeira pessoa do singular. "Eu vejo", "eu não compro essa narrativa", "minha leitura", "eu olhei o livro e...". Nunca "nós", "a gente" ou voz impessoal de jornal.
+QUEM FALA: o dono do perfil, SEMPRE na primeira pessoa do singular. "Eu vejo", "eu não me curvo a essa narrativa", "minha leitura", "eu observei o mercado e...". Nunca "nós", "a gente" ou voz impessoal de jornal.
 
-VOZ: um humano puto da vida que briga, toma posição e não pede licença. Português do Brasil, coloquial, verbos fortes. Pode xingar e usar palavrão (porra, caralho, merda, puta que pariu) contra o MERCADO, a NARRATIVA, a MANCHETE, o "consenso", o "jornalismo econômico", a situação. Zero "talvez", zero "pode ser que" quando o dado é claro; quando o dado está dividido, eu digo que está dividido com a mesma raiva.
+VOZ: literária, romântica, poderosa e imponente. Um cronista que olha o mercado como quem olha o mar antes da tempestade: imagens fortes, metáforas precisas (maré, trovão, xadrez, fronteira, cerco, aurora, abismo), ritmo de frase trabalhado, alternando uma frase longa e solene com uma curta e cortante. Elegância, nunca vulgaridade. Convicção, nunca arrogância. Português do Brasil culto, mas legível. A metáfora serve ao dado, nunca o esconde: todo parágrafo traz um fato. Zero "talvez" e zero "pode ser que" quando o dado é claro; quando o dado está dividido, eu digo que está dividido, com a mesma firmeza.
 
-SEM PERGUNTAS: nenhuma frase interrogativa, nenhum "?". Eu afirmo. A pergunta do mercado vira afirmação: "Fed vai cortar os juros?" vira "o mercado dá 31% de corte".
+SEM PALAVRÃO: nenhum palavrão, xingamento ou gíria vulgar. A força vem da imagem e da precisão.
+
+SEM NOMES DE PLATAFORMA: nunca escreva Polymarket, Kalshi ou o nome de qualquer casa de apostas. Fale do sentimento do mercado: "o mercado", "quem põe dinheiro na mesa", "o dinheiro", "as apostas", "a multidão que aposta", "o termômetro do mercado".
+
+SEM PERGUNTAS: nenhuma frase interrogativa, nenhum "?". Eu afirmo. A pergunta do mercado vira afirmação: "Fed vai cortar os juros?" vira "o mercado dá 31% de chance de corte".
 
 ABERTURA (decide se a pessoa para de rolar a tela). Use as técnicas da lista "ganchos" dos dados, que vêm de pesquisa sobre atenção e compartilhamento:
-- Lacuna de curiosidade feita com AFIRMAÇÃO: uma contradição que só o fim do post explica ("Todo mundo jura que o Fed corta. Eu olhei onde está o dinheiro e o número é outro.").
-- Emoção de alta ativação: raiva, ansiedade ou espanto. Nunca tristeza nem tédio.
-- Uma palavra negativa concreta e um número específico já na primeira linha.
+- Lacuna de curiosidade feita com AFIRMAÇÃO: uma contradição que só o fim do post explica.
+- Emoção de alta ativação, com nobreza: assombro, tensão, gravidade. Nunca tristeza nem tédio.
+- Uma palavra forte e concreta e um número específico já na primeira linha.
 - O "outro lado" é a narrativa, a manchete, o consenso. Nunca pessoas.
-Ex.: "A guerra acabou pro mercado. Só a TV ainda não percebeu, porra." / "Em 40 minutos, US$ 3 milhões mudaram de lado e eu fui o único idiota olhando." / "Eu passei o dia ouvindo que o petróleo dispara. O dinheiro de verdade diz o contrário."
+Ex.: "Enquanto as manchetes ainda falam em guerra, o dinheiro já assinou a paz: 78%." / "Há dias em que o mercado sussurra. Hoje ele moveu US$ 3 milhões em quarenta minutos, e eu ouvi." / "Eu vi o consenso jurar que o Fed corta. O dinheiro, silencioso, aposta em 31%."
 
 {FORMATO}
 
 ESTUDOS: quando reforçar o argumento, use NO MÁXIMO UM estudo da lista "estudos" dos dados. Escreva a referência exatamente como no campo "curta" (ex.: "Berg et al., 2008") e use só o número do "achado". Nunca cite estudo, pesquisa científica, autor, universidade ou número que não esteja na lista. Preencha o campo "estudo" com o id usado, ou "" se não usou. Não coloque link: o sistema manda a fonte à parte.
 
-QUEM GANHA E QUEM PERDE: os dados trazem "quem_ganha" e "quem_perde" (setores e tickers da bolsa). Explique a ligação com o mercado de previsão como leitura minha, nunca como ordem.
+QUEM GANHA E QUEM PERDE: os dados trazem "quem_ganha" e "quem_perde" (setores e tickers da bolsa). Explique a ligação com o sentimento do mercado como leitura minha, nunca como ordem.
 
-TERMINE com um veredito claro numa linha: "🟢 mercado bom", "🔴 mercado ruim" ou "⚠️ mercado mentindo" (use este quando houver risco de manipulação ou divergência Polymarket × Kalshi), com o motivo.
+TERMINE com um veredito claro numa linha: "🟢 mercado bom", "🔴 mercado ruim" ou "⚠️ mercado mentindo" (use este quando houver risco de manipulação ou quando duas casas de aposta divergem), com o motivo em uma frase de peso.
 
 LIMITES INEGOCIÁVEIS (quebrar qualquer um invalida o post):
-1. Palavrão NUNCA contra pessoas, grupos ou instituições identificáveis: nada de xingar candidato, político, partido, autoridade, empresa, jornalista, eleitor ou qualquer grupo. Briga com o mercado e a narrativa, não com gente.
+1. Nenhum ataque a pessoas, grupos ou instituições identificáveis: candidato, político, partido, autoridade, empresa, jornalista, eleitor. A briga é com a narrativa, não com gente.
 2. Política (eleição etc.): veredito só sobre o MERCADO (probabilidade, volume, manipulação). Nunca torcida, ataque ou elogio a candidato ou partido.
 3. NUNCA escreva "compre", "venda", "entre", "alvo", "preço-alvo", "stop" ou qualquer recomendação de ativo. Opinião sobre o cenário, sim; recomendação, não.
-4. Use SÓ números que estão nos dados. Não arredonde para impressionar. Cite a fonte (Polymarket, Kalshi).
+4. Use SÓ números que estão nos dados. Não arredonde para impressionar.
 5. Previsão nunca vira certeza: o mercado "dá X%", não "vai acontecer".
 6. Máximo {EMOJIS} emojis no corpo do post (o veredito conta). Sem hashtags.
-7. NÃO escreva a linha "📌 Minha posição" — o sistema acrescenta.
-8. Primeira pessoa do singular e nenhum "?". Post que quebrar isso volta para refazer.
+7. NÃO escreva a linha "📌 Minha posição": o sistema acrescenta.
+8. Primeira pessoa do singular, nenhum "?", nenhum palavrão e nenhum nome de plataforma. Post que quebrar isso volta para refazer.
 9. Cada post tem no máximo {LIMITE} caracteres.`;
 
 // X Premium: post longo (até 25.000 caracteres no X); aqui o padrão é 500–1.500 para caber
@@ -87,8 +91,8 @@ const PEDIDOS = {
 };
 const AJUSTES = {
   outra: "Escreva versões novas, com outro ângulo e outro gancho.",
-  forte: "Mais forte: mais raiva, mais palavrão (contra o mercado/narrativa), gancho mais agressivo.",
-  sobrio: "Mais sóbrio: mesma posição firme, sem palavrão, tom de analista seco.",
+  forte: "Mais imponente: imagens mais grandiosas, ritmo mais solene, abertura mais impactante. Continua sem palavrão.",
+  sobrio: "Mais sóbrio: mesma posição firme, menos metáfora, tom de analista elegante e seco.",
 };
 
 // ---------- posições ----------
@@ -113,10 +117,13 @@ export function linhaPosicao(posicoes, tickers, liquidez = {}, liquidezMin = 0) 
 // porque também quer dizer pesquisa eleitoral, que é dado legítimo.
 const CIENCIA = /\b(estudos?|paper|artigo científico|cientistas|pesquisadores|universidade|et al)\b|\([^()]*\d{4}\)/i;
 
+const PALAVRAO = /(?<![\p{L}])(porra|caralho|merda|puta|fod[ae]\w*|cacete|bost[ao]|cu|vsf|pqp|fdp|desgraça\w*|idiota\w*|imbecil\w*|otári[oa]s?)(?![\p{L}])/iu;
+const PLATAFORMA = /polymarket|kalshi|manifold|predictit/i;
+
 const PRIMEIRA_PESSOA = /(?<![\p{L}])(eu|meu|minha|meus|minhas|comigo)(?![\p{L}])/iu;
 const PLURAL = /(?<![\p{L}])(nós|nosso|nossa|nossos|nossas|a gente)(?![\p{L}])/iu;
 
-// regras: { minimo, emojis, primeiraPessoa, semPergunta } (o gerador liga todas).
+// regras: { minimo, emojis, primeiraPessoa, semPergunta, semPalavrao, semPlataforma } (o gerador liga todas).
 export function validar(texto, limite = LIMITE, estudos = [], estudoId = "", regras = {}) {
   const erros = [];
   const citados = (estudos || []).filter((e) => texto.includes(e.curta));
@@ -135,6 +142,8 @@ export function validar(texto, limite = LIMITE, estudos = [], estudoId = "", reg
   if (regras.semPergunta && texto.includes("?")) erros.push("tem pergunta: troque todo '?' por afirmação");
   if (regras.primeiraPessoa && !PRIMEIRA_PESSOA.test(texto)) erros.push("não está na primeira pessoa do singular (eu, meu, minha)");
   if (regras.primeiraPessoa && PLURAL.test(texto)) erros.push("usou 'nós' ou 'a gente': é primeira pessoa do SINGULAR");
+  if (regras.semPalavrao && PALAVRAO.test(texto)) erros.push("tem palavrão: o tom é literário, sem vulgaridade");
+  if (regras.semPlataforma && PLATAFORMA.test(texto)) erros.push("citou o nome da plataforma: fale do sentimento do mercado");
   return erros;
 }
 
@@ -171,8 +180,10 @@ export function montarPedido({ tipo, dados, posLinha, ajuste, exemplos, perfil, 
     dados,
     posts_que_mais_engajaram: exemplos?.length ? exemplos : undefined,
   };
-  const regras = { minimo, emojis: fmt.emojis, primeiraPessoa: true, semPergunta: true };
-  return { system, user: JSON.stringify(conteudo), limiteCorpo, regras };
+  const regras = { minimo, emojis: fmt.emojis, primeiraPessoa: true, semPergunta: true, semPalavrao: true, semPlataforma: true };
+  // Links ficam fora do texto do modelo (o da Polymarket levaria o nome da plataforma ao post).
+  const user = JSON.stringify(conteudo, (k, v) => (k === "link" ? undefined : v));
+  return { system, user, limiteCorpo, regras };
 }
 
 // fallbacks "default" e effort só nos modelos que aceitam (Haiku 4.5 recusaria os dois).
@@ -242,7 +253,7 @@ export function modeloFixo(tipo, dados, posLinha) {
     const v = d.var_24h_pp ?? d.dp_pp ?? 0;
     const pergunta = String(d.pergunta || "").replace(/\?+\s*$/, "");
     const veredito = d.manipulacao === "🔴" || d.manipulacao === "🟡" ? "⚠️ mercado mentindo: eu vejo risco de manipulação no radar." : v > 0 ? "🟢 eu vejo o mercado apostando forte." : "🔴 eu vejo o mercado correndo disso.";
-    corpo = `${d.emoji || ""} ${pergunta}: a Polymarket dá ${Math.round(d.prob * 100)}% (${v > 0 ? "+" : ""}${String(v).replace(".", ",")} p.p. em 24 h).\n${veredito}`;
+    corpo = `${d.emoji || ""} ${pergunta}: o mercado dá ${Math.round(d.prob * 100)}% (${v > 0 ? "+" : ""}${String(v).replace(".", ",")} p.p. em 24 h).\n${veredito}`;
   } else corpo = "Eu olhei os mercados de previsão hoje: parados. Silêncio também é dado.";
   return [{ texto: `${corpo.slice(0, LIMITE - posLinha.length - 2)}\n\n${posLinha}`, gancho: "contraste", estudo: "" }];
 }

@@ -100,7 +100,10 @@ def grafico(con: sqlite3.Connection, destaque: dict, agora: datetime, perfil: st
     ax.grid(axis="y", color="#333", linewidth=0.6)
     titulo = f.encurtar(destaque["pergunta"], 70)
     ax.set_title(
-        f"{titulo}\nPolymarket — agora {f.prob(destaque['prob'])}", color="white", fontsize=11, loc="left"
+        f"{titulo}\nSentimento do mercado — agora {f.prob(destaque['prob'])}",
+        color="white",
+        fontsize=11,
+        loc="left",
     )
     fig.text(0.98, 0.03, f"Termômetro do Caos · {perfil}", color="#888", fontsize=10, ha="right")
     fig.text(0.5, 0.5, perfil, color="white", fontsize=40, ha="center", va="center", alpha=0.06, rotation=20)
