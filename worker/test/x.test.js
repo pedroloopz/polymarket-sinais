@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
-import { comandoX, gerar, intent, linhaPosicao, modeloFixo, pedidoApi, rotinaX, validar } from "../src/x.js";
+import { comandoX, gerar, intent, linhaPosicao, modeloFixo, pedidoApi, rotinaX, textoTelegram, validar } from "../src/x.js";
 
 function kvFalso(inicial = {}) {
   const dados = Object.fromEntries(Object.entries(inicial).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]));
@@ -158,4 +158,28 @@ test("parâmetros por modelo", () => {
   const sonnet = pedidoApi({ modelo: "claude-sonnet-5-5", effort: "low" }, "s", []);
   assert.equal(sonnet.fallbacks, "default");
   assert.equal(sonnet.output_config.effort, "low");
+});
+
+const ESTUDOS = [{ id: "berg2008_74", cita: "Berg, Nelson e Rietz, 2008", curta: "Berg et al., 2008", achado: "74%", link: "https://iemweb.biz.uiowa.edu/x" }];
+
+test("estudo só da lista, com a referência escrita", () => {
+  assert.deepEqual(validar("O mercado bateu as pesquisas em 74% das vezes (Berg et al., 2008).", 280, ESTUDOS, "berg2008_74"), []);
+  assert.deepEqual(validar("As pesquisas eleitorais erram. O mercado não.", 280, ESTUDOS), []); // pesquisa eleitoral é dado legítimo
+  assert.ok(validar("Um estudo de Harvard mostra que o mercado acerta 90%.", 280, ESTUDOS).length);
+  assert.ok(validar("Mercado acerta mais (Silva, 2019).", 280, ESTUDOS).length);
+  assert.ok(validar("Sem citação nenhuma.", 280, ESTUDOS, "berg2008_74").length);
+  assert.ok(validar("x (Berg et al., 2008)", 280, ESTUDOS, "inventado").length);
+});
+
+test("rascunho no Telegram traz a fonte do estudo para responder no post", async () => {
+  const c = clienteFalso([{ posts: [
+    { texto: "Todo mundo confia na pesquisa. O dinheiro discorda: em 74% das vezes o mercado chegou mais perto (Berg et al., 2008).\n🟢 mercado bom", gancho: "estudo", estudo: "berg2008_74" },
+    { texto: "16 p.p. em 24 h e a TV dormindo.\n🟢 mercado bom", gancho: "numero_choque", estudo: "" },
+  ] }]);
+  const posts = await gerar({ env: ENV, tipo: "diario", dados: { ...DADOS, estudos: ESTUDOS }, posLinha: "📌 Sem posição.", perfil: "@p", cfg: {}, criarCliente: c.criar });
+  assert.equal(posts.length, 2);
+  assert.match(c.chamadas[0].system, /NO MÁXIMO UM estudo/);
+  const txt = textoTelegram("diario", posts, "", ESTUDOS);
+  assert.match(txt, /🔗 Fonte \(responda no próprio post\): Berg, Nelson e Rietz, 2008 — https:\/\/iemweb/);
+  assert.equal((txt.match(/🔗/g) || []).length, 1);
 });
