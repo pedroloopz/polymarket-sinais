@@ -70,6 +70,9 @@ def test_pauta_completa_serializavel(con, cfg):
         e["link"].startswith("https://") for e in p["estudos"]
     )
     assert any("curiosidade" in g for g in p["ganchos"])
+    assert p["x"]["premium"] is True and p["x"]["tamanho_max"] == 1500
+    d = p["destaques"][0]
+    assert d["quem_ganha"] and d["quem_perde"] and d["leitura_tema"]
 
 
 def test_pedido_de_fio_uma_vez_por_dia(con, cfg):

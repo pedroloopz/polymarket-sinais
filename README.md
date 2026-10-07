@@ -142,6 +142,8 @@ Botões em cada rascunho: **✅ Abrir no X** (texto já preenchido) · **🔄 Ou
 
 **Aprender com o engajamento:** responda ao rascunho com `/engajamento <link> <curtidas> <reposts> A` (ou B). Domingo, o placar mostra o melhor formato, gancho e horário, e os posts campeões viram exemplo para os próximos.
 
+**Formato:** X Premium (`config/regras.yaml` → `x.premium`): posts de 500 a 1.500 caracteres, com o gancho nas primeiras ~280 letras (antes do "Mostrar mais"). Sempre na primeira pessoa do singular e sem perguntas; o código recusa post com "?", sem "eu/meu/minha" ou com "nós/a gente". Cada destaque leva quem ganha e quem perde na bolsa.
+
 **Estudos e ganchos:** as aberturas seguem técnicas de atenção com base em pesquisa (lacuna de curiosidade, emoção de alta ativação, palavra negativa concreta, a narrativa como "outro lado"). O post só cita estudo da lista fechada em `config/estudos.yaml`; citação fora da lista é recusada pelo código. Quando o post usa um estudo, o rascunho no Telegram traz o link da fonte para você responder no próprio post.
 
 **Texto pela IA:** Secret `ANTHROPIC_API_KEY` (opcional). Sem ele, os rascunhos saem de um modelo fixo, secos mas corretos. Modelo e esforço em `config/regras.yaml` → `x.modelo` / `x.effort`.
