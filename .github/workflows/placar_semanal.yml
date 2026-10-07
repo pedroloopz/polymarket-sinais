@@ -5,6 +5,11 @@ on:
     # Domingo 21:45 em Brasília = segunda 00:45 UTC (antes do silêncio das 22h).
     - cron: "45 0 * * 1"
   workflow_dispatch:
+    inputs:
+      automatico:
+        description: "1 = disparado pelo Worker (ignora se já rodou)"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
@@ -24,6 +29,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ALERTA_EMA_TOKEN: ${{ secrets.ALERTA_EMA_TOKEN }}
       BOT_DB: dados/bot.sqlite
+      # Execução automática (agendamento do GitHub ou Worker): pula se já rodou nesta janela.
+      AUTOMATICO: ${{ github.event_name == 'schedule' || inputs.automatico == '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/preparar

@@ -5,6 +5,11 @@ on:
     # De hora em hora, aos :07 (evita o pico das :00, quando o GitHub mais atrasa).
     - cron: "7 * * * *"
   workflow_dispatch:
+    inputs:
+      automatico:
+        description: "1 = disparado pelo Worker (ignora se já rodou)"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
@@ -25,6 +30,8 @@ jobs:
       ALERTA_EMA_TOKEN: ${{ secrets.ALERTA_EMA_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       BOT_DB: dados/bot.sqlite
+      # Execução automática (agendamento do GitHub ou Worker): pula se já rodou nesta janela.
+      AUTOMATICO: ${{ github.event_name == 'schedule' || inputs.automatico == '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/preparar

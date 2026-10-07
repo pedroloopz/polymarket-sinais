@@ -6,6 +6,11 @@ on:
     # O GitHub costuma atrasar alguns minutos: a mensagem chega perto das 07h30.
     - cron: "20 10 * * *"
   workflow_dispatch:
+    inputs:
+      automatico:
+        description: "1 = disparado pelo Worker (ignora se já rodou)"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
@@ -26,6 +31,8 @@ jobs:
       ALERTA_EMA_TOKEN: ${{ secrets.ALERTA_EMA_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       BOT_DB: dados/bot.sqlite
+      # Execução automática (agendamento do GitHub ou Worker): pula se já rodou nesta janela.
+      AUTOMATICO: ${{ github.event_name == 'schedule' || inputs.automatico == '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/preparar

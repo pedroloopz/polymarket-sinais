@@ -84,6 +84,22 @@ def _publicar_painel(ctx: Contexto, fontes: dict[str, str], textos: dict[str, st
         info(_log, "painel publicado no KV", bytes=painel.tamanho(dados))
 
 
+def ja_rodou(ctx: Contexto, tarefa: str, janela: timedelta | None = None, mesmo_dia: bool = False) -> bool:
+    """Evita repetir a execução quando o GitHub e o Worker disparam a mesma tarefa.
+    Só vale para execuções automáticas (AUTOMATICO=true); a manual sempre roda."""
+    if os.getenv("AUTOMATICO", "").lower() != "true":
+        return False
+    ultima = db.ultima_execucao(ctx.con, tarefa)
+    if not ultima or ultima["status"] != "ok":
+        return False
+    fim = db.de_iso(ultima["fim"])
+    if mesmo_dia:
+        from bot import formato
+
+        return formato.local(fim).date() == formato.local(ctx.agora).date()
+    return janela is not None and ctx.agora - fim < janela
+
+
 def tarefa_coletar(ctx: Contexto) -> dict[str, str]:
     cfg, con, agora = ctx.cfg, ctx.con, ctx.agora
     status = "ok"

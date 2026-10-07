@@ -70,6 +70,7 @@ No navegador do celular (o app do GitHub não edita Secrets): abra o repositóri
 | `CLOUDFLARE_ACCOUNT_ID` | Account ID do Cloudflare |
 | `ANTHROPIC_API_KEY` *(opcional)* | Chave da API da Anthropic: tradução das perguntas para o português e posts do X escritos pela IA |
 | `ALERTA_EMA_TOKEN` *(opcional)* | Token do GitHub só leitura do alerta-ema (posições automáticas) |
+| `GH_DISPATCH_TOKEN` *(recomendado)* | Token do GitHub com **Actions: Read and write** no polymarket-sinais: o Worker dispara coleta, resumo e placar no horário (o agendamento do próprio GitHub atrasa e pula) |
 
 > Dica: no "Settings", se não aparecer, toque em **⋯** ou role a barra de abas para o lado; ou ative "Versão para computador" no navegador.
 
